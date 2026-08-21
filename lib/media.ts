@@ -22,7 +22,7 @@ export interface MediaRecord {
   iv: string;
   data: ArrayBuffer;
   type: string;
-  kind: "video" | "image";
+  kind: "video" | "image" | "audio";
   duration: number;
   createdAt: number;
 }
@@ -66,7 +66,7 @@ export function mediaId(): string {
   )}`;
 }
 
-/** Reads a video's duration (and a poster frame is not needed for playback). */
+/** Reads a clip's duration; works for audio as well as video. */
 export function probeDuration(file: Blob): Promise<number> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
@@ -87,14 +87,15 @@ export function probeDuration(file: Blob): Promise<number> {
 
 export async function putMedia(
   blob: Blob,
-  kind: "video" | "image"
+  kind: "video" | "image" | "audio"
 ): Promise<MediaRecord> {
   const active = getActive();
   if (!active) throw new Error("Log in before saving media.");
   if (blob.size > MAX_CLIP_BYTES)
     throw new Error("That clip is too large — keep it under 60MB.");
 
-  const duration = kind === "video" ? await probeDuration(blob) : 0;
+  const duration =
+    kind === "video" || kind === "audio" ? await probeDuration(blob) : 0;
   const iv = randomBytes(12);
   const plain = await blob.arrayBuffer();
 
@@ -108,7 +109,13 @@ export async function putMedia(
     id: mediaId(),
     iv: toBase64(iv),
     data: cipher,
-    type: blob.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
+    type:
+      blob.type ||
+      (kind === "video"
+        ? "video/mp4"
+        : kind === "audio"
+          ? "audio/mpeg"
+          : "image/jpeg"),
     kind,
     duration,
     createdAt: Date.now(),

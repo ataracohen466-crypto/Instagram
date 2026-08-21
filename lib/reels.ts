@@ -37,6 +37,9 @@ export interface Reel {
    */
   videoMediaId?: string;
   durationSeconds?: number;
+  /** Background music mixed into the exported video. */
+  musicMediaId?: string;
+  musicTitle?: string;
   /** Present on reels the user built from a template. */
   frames?: ReelFrame[];
   templateId?: string;

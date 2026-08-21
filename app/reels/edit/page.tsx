@@ -12,6 +12,7 @@ import {
   X,
   Video,
   Camera,
+  Music2,
 } from "lucide-react";
 import {
   getTemplate,
@@ -97,9 +98,13 @@ function Editor() {
   const [sharing, setSharing] = useState(false);
   const [busySlot, setBusySlot] = useState<number | null>(null);
   const [exportPct, setExportPct] = useState(0);
+  const [musicId, setMusicId] = useState<string | undefined>();
+  const [musicTitle, setMusicTitle] = useState("");
+  const [musicVolume, setMusicVolume] = useState(0.65);
 
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
+  const musicInput = useRef<HTMLInputElement>(null);
 
   // Seed editor state from the chosen template.
   useEffect(() => {
@@ -188,6 +193,20 @@ function Editor() {
     }
   }
 
+  async function pickMusic(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    try {
+      const record = await putMedia(file, "audio");
+      setMusicId(record.id);
+      setMusicTitle(file.name.replace(/\.[^.]+$/, ""));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "That audio file could not be read."
+      );
+    }
+  }
+
   function setSlotText(index: number, text: string) {
     setFrames((prev) => prev.map((f, i) => (i === index ? { ...f, text } : f)));
   }
@@ -226,7 +245,9 @@ function Editor() {
       frameSeeds: frames.map((f) => f.seed),
       frames,
       caption: caption.trim() || template!.name,
-      audioLabel: `${profile.username} · ${template!.audioLabel}`,
+      audioLabel: musicTitle
+        ? `${profile.username} · ${musicTitle}`
+        : `${profile.username} · ${template!.audioLabel}`,
       likedBy: [],
       comments: [],
       createdAt: Date.now(),
@@ -235,6 +256,8 @@ function Editor() {
       transition,
       filter,
       textStyle: template!.textStyle,
+      musicMediaId: musicId,
+      musicTitle: musicTitle || undefined,
       isMine: true,
     };
 
@@ -245,6 +268,8 @@ function Editor() {
         filter,
         transition,
         textStyle: template!.textStyle,
+        musicMediaId: musicId,
+        musicVolume,
         onProgress: setExportPct,
       });
 
@@ -500,6 +525,62 @@ function Editor() {
           ))}
         </div>
 
+        {/* Music */}
+        <p className="mt-6 text-[13px] font-semibold">Music</p>
+        <div className="mt-2 rounded-xl border border-ig-border p-3">
+          {musicId ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Music2 size={15} className="shrink-0 text-ig-muted" />
+                <p className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                  {musicTitle}
+                </p>
+                <button
+                  onClick={() => {
+                    setMusicId(undefined);
+                    setMusicTitle("");
+                  }}
+                  aria-label="Remove music"
+                  className="text-ig-muted"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2">
+                <span className="text-[11px] text-ig-muted">Volume</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={musicVolume}
+                  onChange={(e) => setMusicVolume(Number(e.target.value))}
+                  className="h-1 flex-1 accent-ig-blue"
+                />
+                <span className="w-8 text-right text-[11px] tabular-nums text-ig-muted">
+                  {Math.round(musicVolume * 100)}%
+                </span>
+              </div>
+              <p className="mt-1.5 text-[11px] text-ig-muted">
+                Mixed into the exported video. Your clips duck underneath it.
+              </p>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => musicInput.current?.click()}
+                className="flex items-center gap-2 text-[13px] font-semibold text-ig-blue"
+              >
+                <Music2 size={15} /> Add background music
+              </button>
+              <p className="mt-1.5 text-[11px] text-ig-muted">
+                Pick an audio file from this device. It loops to fill the reel
+                and fades out at the end.
+              </p>
+            </>
+          )}
+        </div>
+
         {/* Caption */}
         <p className="mt-6 text-[13px] font-semibold">Caption</p>
         <textarea
@@ -526,6 +607,17 @@ function Editor() {
         hidden
         onChange={(e) => {
           pickClip(e.target.files?.[0], activeSlot);
+          e.target.value = "";
+        }}
+      />
+
+      <input
+        ref={musicInput}
+        type="file"
+        accept="audio/*"
+        hidden
+        onChange={(e) => {
+          pickMusic(e.target.files?.[0]);
           e.target.value = "";
         }}
       />

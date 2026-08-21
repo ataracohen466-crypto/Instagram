@@ -246,6 +246,10 @@ export interface RenderOptions {
   filter: FilterId;
   transition: TransitionId;
   textStyle: TextStyleId;
+  /** Background music, mixed under the clip audio for the whole reel. */
+  musicMediaId?: string;
+  /** 0-1. Clip audio ducks as this rises. */
+  musicVolume?: number;
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;
 }
@@ -260,6 +264,8 @@ export async function renderReel({
   filter,
   transition,
   textStyle,
+  musicMediaId,
+  musicVolume = 0.65,
   onProgress,
   signal,
 }: RenderOptions): Promise<RenderResult> {
@@ -295,6 +301,20 @@ export async function renderReel({
    * lands in the export at the right moment.
    */
   const schedule: { buffer: AudioBuffer; at: number; length: number }[] = [];
+  let music: AudioBuffer | null = null;
+
+  if (audioCtx && audioDest && musicMediaId) {
+    try {
+      const url = await getMediaUrl(musicMediaId);
+      if (url) {
+        const bytes = await (await fetch(url)).arrayBuffer();
+        music = await audioCtx.decodeAudioData(bytes);
+      }
+    } catch {
+      /* unreadable music file — the reel still renders, just without it */
+    }
+  }
+
   if (audioCtx && audioDest) {
     let offset = 0;
     for (const clip of clips) {
@@ -315,7 +335,7 @@ export async function renderReel({
   const stream = canvas.captureStream(30);
   // Only attach audio when a clip actually has some: an always-silent track
   // can stall the encoder and yield an empty file.
-  if (schedule.length > 0 && audioDest) {
+  if ((schedule.length > 0 || music) && audioDest) {
     if (audioCtx?.state === "suspended") await audioCtx.resume();
     audioDest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
   }
@@ -335,14 +355,39 @@ export async function renderReel({
 
   recorder.start(200);
 
-  if (schedule.length > 0 && audioCtx && audioDest) {
+  if ((schedule.length > 0 || music) && audioCtx && audioDest) {
     const t0 = audioCtx.currentTime + 0.05;
+    const totalSeconds = totalMs / 1000;
+
+    // Clip audio ducks under the music so a backing track stays audible.
+    const clipGain = audioCtx.createGain();
+    clipGain.gain.value = music ? 1 - musicVolume * 0.7 : 1;
+    clipGain.connect(audioDest);
+
     for (const item of schedule) {
       const node = audioCtx.createBufferSource();
       node.buffer = item.buffer;
-      node.connect(audioDest);
+      node.connect(clipGain);
       // Trim to the slot length so audio can't run past its clip.
       node.start(t0 + item.at, 0, Math.min(item.length, item.buffer.duration));
+    }
+
+    if (music) {
+      const musicGain = audioCtx.createGain();
+      musicGain.gain.value = musicVolume;
+      musicGain.connect(audioDest);
+
+      const node = audioCtx.createBufferSource();
+      node.buffer = music;
+      // Loop a short track so it covers the whole reel.
+      node.loop = music.duration < totalSeconds;
+      node.connect(musicGain);
+      node.start(t0, 0, node.loop ? totalSeconds : Math.min(totalSeconds, music.duration));
+
+      // Fade the last second so it doesn't cut off abruptly.
+      const fadeAt = t0 + Math.max(totalSeconds - 1, 0);
+      musicGain.gain.setValueAtTime(musicVolume, fadeAt);
+      musicGain.gain.linearRampToValueAtTime(0.0001, t0 + totalSeconds);
     }
   }
 
