@@ -19,6 +19,7 @@ import { avatarUrl, photoUrl } from "@/lib/seed";
 import { generateComments } from "@/lib/aiClient";
 import { getMediaUrl, putMedia } from "@/lib/media";
 import { renderReel } from "@/lib/render";
+import { playTrack, pausePlayback, isPremium } from "@/lib/spotify";
 import { FILTERS } from "@/lib/reelTemplates";
 import ReelMedia from "./ReelMedia";
 
@@ -150,6 +151,20 @@ export default function ReelCard({ reel }: { reel: Reel }) {
     el.addEventListener("timeupdate", onTime);
     return () => el.removeEventListener("timeupdate", onTime);
   }, [active, reel.videoSrc, renderedUrl]);
+
+  // A Premium viewer hears the real track alongside the reel. Its audio is
+  // DRM-protected, so it is never part of the exported file.
+  useEffect(() => {
+    if (!reel.spotifyUri || !isPremium()) return;
+    if (active) {
+      playTrack(reel.spotifyUri).catch(() => {});
+    } else {
+      pausePlayback().catch(() => {});
+    }
+    return () => {
+      pausePlayback().catch(() => {});
+    };
+  }, [active, reel.spotifyUri]);
 
   const needsCombining = Boolean(
     reel.isMine && !reel.videoMediaId && reel.frames?.some((f) => f.mediaId || f.imageUrl)
@@ -430,9 +445,26 @@ export default function ReelCard({ reel }: { reel: Reel }) {
           <p className="mt-1.5 text-[11px] text-white/80">{combineError}</p>
         )}
         <p className="mt-2 text-[13px] leading-[17px]">{reel.caption}</p>
-        <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-white/90">
-          <Music2 size={13} /> {reel.audioLabel}
-        </p>
+        {reel.spotifyUri ? (
+          <a
+            href={reel.spotifyUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="pointer-events-auto mt-1.5 flex items-center gap-1.5 text-[12px] text-white/90"
+          >
+            <Music2 size={13} />
+            <span className="truncate">
+              {reel.spotifyName} · {reel.spotifyArtist}
+            </span>
+            <span className="rounded-full bg-[#1DB954] px-1.5 py-0.5 text-[9px] font-bold text-black">
+              Spotify
+            </span>
+          </a>
+        ) : (
+          <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-white/90">
+            <Music2 size={13} /> {reel.audioLabel}
+          </p>
+        )}
       </div>
 
       {showComments && (

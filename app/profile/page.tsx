@@ -11,6 +11,14 @@ import Photo from "@/components/Photo";
 import { getApiKey, setApiKey } from "@/lib/aiClient";
 import { changePassword, clearSession, deleteAccount } from "@/lib/vault";
 import { passwordProblem } from "@/lib/crypto";
+import {
+  getClientId as getSpotifyId,
+  setClientId as setSpotifyId,
+  redirectUri,
+  isConnected as spotifyConnected,
+  disconnect as spotifyDisconnect,
+  beginLogin as spotifyLogin,
+} from "@/lib/spotify";
 
 function SettingsSheet({ onClose }: { onClose: () => void }) {
   const profile = useApp((s) => s.profile);
@@ -21,9 +29,15 @@ function SettingsSheet({ onClose }: { onClose: () => void }) {
   const [nextPw, setNextPw] = useState("");
   const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
+  const [spotifyId, setSpotifyIdState] = useState("");
+  const [spotifyOn, setSpotifyOn] = useState(false);
+  const [redirect, setRedirect] = useState("");
 
   useEffect(() => {
     setKey(getApiKey());
+    setSpotifyIdState(getSpotifyId());
+    setSpotifyOn(spotifyConnected());
+    setRedirect(redirectUri());
   }, []);
 
   function save() {
@@ -106,6 +120,52 @@ function SettingsSheet({ onClose }: { onClose: () => void }) {
         >
           Get a key from the Anthropic Console
         </a>
+
+        <div className="mt-5 border-t border-ig-border pt-4">
+          <p className="text-[13px] font-semibold">Spotify</p>
+          <p className="mt-1 text-[12px] leading-[17px] text-ig-muted">
+            Lets you attach real songs to reels. Create a free app at
+            developer.spotify.com, add the redirect URI below, then paste the
+            Client ID here.
+          </p>
+          <input
+            value={spotifyId}
+            onChange={(e) => {
+              setSpotifyIdState(e.target.value);
+              // Persist as they type: tapping away shouldn't lose it.
+              setSpotifyId(e.target.value);
+            }}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Spotify Client ID"
+            className="mt-2 w-full rounded-lg border border-ig-border px-3 py-2 text-[13px] outline-none placeholder:text-ig-muted"
+          />
+          <p className="mt-1.5 break-all text-[11px] text-ig-muted">
+            Redirect URI: <span className="font-medium">{redirect}</span>
+          </p>
+          {spotifyOn ? (
+            <button
+              onClick={() => {
+                spotifyDisconnect();
+                setSpotifyOn(false);
+              }}
+              className="mt-2 w-full rounded-lg bg-[#efefef] py-2 text-sm font-semibold"
+            >
+              Disconnect Spotify
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setSpotifyId(spotifyId);
+                spotifyLogin().catch(() => {});
+              }}
+              disabled={!spotifyId.trim()}
+              className="mt-2 w-full rounded-lg bg-[#1DB954] py-2 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              Connect Spotify
+            </button>
+          )}
+        </div>
 
         <div className="mt-5 border-t border-ig-border pt-4">
           <button
