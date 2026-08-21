@@ -33,7 +33,7 @@ export default function MessagesPage() {
         {rows.map(({ persona, last }) => (
           <Link
             key={persona.id}
-            href={`/messages/${persona.id}`}
+            href={`/messages/chat?p=${encodeURIComponent(persona.id)}`}
             className="flex items-center gap-3 px-4 py-2"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}

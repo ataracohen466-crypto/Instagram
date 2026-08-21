@@ -7,8 +7,12 @@ import { useApp } from "@/lib/store";
 import { avatarUrl } from "@/lib/seed";
 
 export default function BottomNav() {
-  const pathname = usePathname();
+  const rawPath = usePathname();
   const profile = useApp((s) => s.profile);
+
+  // Static export uses trailing slashes; normalise so route checks still match.
+  const pathname =
+    rawPath.length > 1 ? rawPath.replace(/\/$/, "") : rawPath;
 
   if (/^\/messages(\/.*)?$/.test(pathname)) return null;
 
@@ -36,13 +40,13 @@ export default function BottomNav() {
         })}
 
         {profile && (
-          <Link href={`/profile/${profile.username}`} aria-label="Profile">
+          <Link href={`/profile?u=${encodeURIComponent(profile.username)}`} aria-label="Profile">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={avatarUrl(profile.avatarSeed)}
               alt=""
               className={`h-6 w-6 rounded-full ${
-                pathname.startsWith("/profile/") ? "ring-2 ring-black" : ""
+                pathname.startsWith("/profile") ? "ring-2 ring-black" : ""
               }`}
             />
           </Link>

@@ -1,26 +1,107 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Grid3x3, Bookmark, UserSquare, Settings } from "lucide-react";
 import { getPersona } from "@/lib/personas";
 import { useApp } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
 import Photo from "@/components/Photo";
+import { getApiKey, setApiKey } from "@/lib/aiClient";
 
-export default function ProfilePage() {
-  const params = useParams<{ username: string }>();
-  const username = decodeURIComponent(params.username);
+function SettingsSheet({ onClose }: { onClose: () => void }) {
+  const resetEverything = useApp((s) => s.resetEverything);
+  const [key, setKey] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setKey(getApiKey());
+  }, []);
+
+  function save() {
+    setApiKey(key);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[470px] rounded-t-2xl bg-white p-5 sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-base font-semibold">Settings</h2>
+
+        <p className="mt-4 text-[13px] font-semibold">Anthropic API key</p>
+        <p className="mt-1 text-[12px] leading-[17px] text-ig-muted">
+          Add a key to make the AI accounts write real replies. It is stored
+          only in this browser and is sent straight to Anthropic — never to any
+          other server. Without a key the app still works using canned text.
+        </p>
+        <input
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="sk-ant-..."
+          className="mt-2 w-full rounded-lg border border-ig-border px-3 py-2 text-[13px] outline-none placeholder:text-ig-muted"
+        />
+        <button
+          onClick={save}
+          className="mt-2 w-full rounded-lg bg-ig-blue py-2 text-sm font-semibold text-white"
+        >
+          {saved ? "Saved ✓" : "Save key"}
+        </button>
+        <a
+          href="https://console.anthropic.com/settings/keys"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 block text-center text-[12px] text-ig-blue"
+        >
+          Get a key from the Anthropic Console
+        </a>
+
+        <div className="mt-5 border-t border-ig-border pt-4">
+          <button
+            onClick={() => {
+              if (confirm("Log out and erase this browser's feed?")) {
+                resetEverything();
+              }
+            }}
+            className="w-full rounded-lg bg-[#efefef] py-2 text-sm font-semibold text-ig-red"
+          >
+            Log out and reset
+          </button>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="mt-2 w-full py-2 text-sm font-semibold text-ig-muted"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ProfileBody() {
+  const searchParams = useSearchParams();
+  const username = searchParams.get("u") ?? "";
 
   const profile = useApp((s) => s.profile);
   const posts = useApp((s) => s.posts);
-  const resetEverything = useApp((s) => s.resetEverything);
 
   const persona = getPersona(username);
   const isMe = profile?.username === username;
 
   const [following, setFollowing] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
 
   if (!persona && !isMe) {
     return (
@@ -41,6 +122,8 @@ export default function ProfilePage() {
 
   return (
     <div className="bg-white">
+      {showSettings && <SettingsSheet onClose={() => setShowSettings(false)} />}
+
       <div className="flex items-center gap-4 px-4 pt-4">
         <div className="story-ring h-[88px] w-[88px] shrink-0 rounded-full p-[3px]">
           <div className="h-full w-full rounded-full bg-white p-[2px]">
@@ -91,11 +174,7 @@ export default function ProfilePage() {
               New post
             </Link>
             <button
-              onClick={() => {
-                if (confirm("Log out and erase this browser's feed?")) {
-                  resetEverything();
-                }
-              }}
+              onClick={() => setShowSettings(true)}
               className="rounded-lg bg-[#efefef] px-3 py-1.5"
               aria-label="Settings"
             >
@@ -115,7 +194,7 @@ export default function ProfilePage() {
               {following ? "Following" : "Follow"}
             </button>
             <Link
-              href={`/messages/${persona!.id}`}
+              href={`/messages/chat?p=${encodeURIComponent(persona!.id)}`}
               className="flex-1 rounded-lg bg-[#efefef] py-1.5 text-center text-sm font-semibold"
             >
               Message
@@ -154,5 +233,13 @@ export default function ProfilePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <ProfileBody />
+    </Suspense>
   );
 }

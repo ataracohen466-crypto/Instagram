@@ -35,7 +35,7 @@ export default function StoryBar() {
       {PERSONAS.map((p) => (
         <Link
           key={p.id}
-          href={`/profile/${p.username}`}
+          href={`/profile?u=${encodeURIComponent(p.username)}`}
           className="flex w-[66px] shrink-0 flex-col items-center gap-1"
         >
           <div className="story-ring h-[62px] w-[62px] rounded-full p-[2px]">

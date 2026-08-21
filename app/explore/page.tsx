@@ -61,7 +61,7 @@ export default function ExplorePage() {
             people.map((p) => (
               <Link
                 key={p.id}
-                href={`/profile/${p.username}`}
+                href={`/profile?u=${encodeURIComponent(p.username)}`}
                 className="flex items-center gap-3 px-4 py-2.5"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -85,7 +85,7 @@ export default function ExplorePage() {
           {grid.map((post) => (
             <Link
               key={post.id}
-              href={`/profile/${post.authorUsername}`}
+              href={`/profile?u=${encodeURIComponent(post.authorUsername)}`}
               className="aspect-square bg-ig-bg"
             >
               <Photo

@@ -14,6 +14,7 @@ import Photo from "./Photo";
 import { useApp, MY_ID, uid } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
 import { timeAgo } from "@/lib/time";
+import { generateComments } from "@/lib/aiClient";
 
 export default function PostCard({ post }: { post: Post }) {
   const profile = useApp((s) => s.profile);
@@ -63,17 +64,12 @@ export default function PostCard({ post }: { post: Post }) {
     // The post's author replies to you.
     setReplying(true);
     try {
-      const res = await fetch("/api/ai/comment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          caption: `${post.caption}\n\n${profile.username} just commented: "${text}"`,
-          count: 1,
-          personaIds: [post.authorUsername],
-        }),
-      });
-      const data = await res.json();
-      const reply = data.comments?.[0];
+      const replies = await generateComments(
+        `${post.caption}\n\n${profile.username} just commented: "${text}"`,
+        1,
+        [post.authorUsername]
+      );
+      const reply = replies[0];
       if (reply) {
         addComment(post.id, {
           id: uid("c"),
@@ -96,7 +92,7 @@ export default function PostCard({ post }: { post: Post }) {
   return (
     <article className="border-b border-ig-border bg-white pb-3">
       <header className="flex items-center gap-3 px-4 py-3">
-        <Link href={`/profile/${post.authorUsername}`}>
+        <Link href={`/profile?u=${encodeURIComponent(post.authorUsername)}`}>
           <div className="story-ring h-8 w-8 rounded-full p-[2px]">
             <div className="h-full w-full rounded-full bg-white p-[1.5px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -111,7 +107,7 @@ export default function PostCard({ post }: { post: Post }) {
 
         <div className="min-w-0 flex-1">
           <Link
-            href={`/profile/${post.authorUsername}`}
+            href={`/profile?u=${encodeURIComponent(post.authorUsername)}`}
             className="text-[13px] font-semibold"
           >
             {post.authorUsername}
@@ -197,7 +193,7 @@ export default function PostCard({ post }: { post: Post }) {
         {post.caption && (
           <p className="mt-1 leading-[18px]">
             <Link
-              href={`/profile/${post.authorUsername}`}
+              href={`/profile?u=${encodeURIComponent(post.authorUsername)}`}
               className="font-semibold"
             >
               {post.authorUsername}
@@ -231,7 +227,7 @@ export default function PostCard({ post }: { post: Post }) {
           {visibleComments.map((c) => (
             <p key={c.id} className="leading-[18px]">
               <Link
-                href={c.isMe ? "#" : `/profile/${c.authorUsername}`}
+                href={c.isMe ? "#" : `/profile?u=${encodeURIComponent(c.authorUsername)}`}
                 className="font-semibold"
               >
                 {c.authorUsername}

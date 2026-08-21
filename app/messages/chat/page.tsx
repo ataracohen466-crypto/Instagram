@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ChevronLeft, Phone, Video, Info } from "lucide-react";
 import { getPersona } from "@/lib/personas";
 import { useApp, uid } from "@/lib/store";
 import { avatarUrl } from "@/lib/seed";
 import { ChatMessage } from "@/lib/types";
+import { generateChatReply } from "@/lib/aiClient";
 
-export default function ChatPage() {
-  const params = useParams<{ personaId: string }>();
-  const persona = getPersona(params.personaId);
+function Chat() {
+  const searchParams = useSearchParams();
+  const persona = getPersona(searchParams.get("p") ?? "");
 
   const profile = useApp((s) => s.profile);
   const chats = useApp((s) => s.chats);
@@ -27,7 +28,13 @@ export default function ChatPage() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thread.length, typing]);
 
-  if (!persona) notFound();
+  if (!persona) {
+    return (
+      <p className="px-8 py-20 text-center text-sm text-ig-muted">
+        Sorry, this conversation isn&apos;t available.
+      </p>
+    );
+  }
 
   async function send() {
     const text = draft.trim();
@@ -44,24 +51,16 @@ export default function ChatPage() {
     setTyping(true);
 
     try {
-      const res = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          personaId: persona!.id,
-          myName: profile?.name ?? profile?.username ?? "there",
-          messages: [...thread, mine].map((m) => ({
-            sender: m.sender,
-            text: m.text,
-          })),
-        }),
-      });
-      const data = await res.json();
-      if (data.reply) {
+      const reply = await generateChatReply(
+        persona!.id,
+        profile?.name ?? profile?.username ?? "there",
+        [...thread, mine]
+      );
+      if (reply) {
         appendChat(persona!.id, {
           id: uid("m"),
           sender: "persona",
-          text: data.reply,
+          text: reply,
           createdAt: Date.now(),
         });
       }
@@ -114,7 +113,7 @@ export default function ChatPage() {
           </p>
           <p className="max-w-[260px] text-sm text-ig-muted">{persona.bio}</p>
           <Link
-            href={`/profile/${persona.username}`}
+            href={`/profile?u=${encodeURIComponent(persona.username)}`}
             className="mt-1 rounded-lg bg-[#efefef] px-4 py-1.5 text-sm font-semibold"
           >
             View profile
@@ -199,5 +198,13 @@ export default function ChatPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <Chat />
+    </Suspense>
   );
 }

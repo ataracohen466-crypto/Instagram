@@ -47,7 +47,7 @@ export default function ActivityPage() {
       ) : (
         events.map((e) => (
           <div key={e.key} className="flex items-center gap-3 px-4 py-2">
-            <Link href={`/profile/${e.username}`}>
+            <Link href={`/profile?u=${encodeURIComponent(e.username)}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={avatarUrl(e.avatarSeed)}
@@ -56,13 +56,13 @@ export default function ActivityPage() {
               />
             </Link>
             <p className="flex-1 text-[14px] leading-[18px]">
-              <Link href={`/profile/${e.username}`} className="font-semibold">
+              <Link href={`/profile?u=${encodeURIComponent(e.username)}`} className="font-semibold">
                 {e.username}
               </Link>{" "}
               {e.text}{" "}
               <span className="text-ig-muted">{timeAgo(e.createdAt)}</span>
             </p>
-            <Link href={`/profile/${profile?.username}`}>
+            <Link href={`/profile?u=${encodeURIComponent(profile?.username ?? "")}`}>
               <Photo
                 src={e.thumb}
                 seed={e.thumbSeed}

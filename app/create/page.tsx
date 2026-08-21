@@ -6,6 +6,7 @@ import { ImagePlus, Sparkles, X } from "lucide-react";
 import { useApp, uid } from "@/lib/store";
 import { photoUrl } from "@/lib/seed";
 import Photo from "@/components/Photo";
+import { generateCaption, generateComments } from "@/lib/aiClient";
 
 const MAX_DIMENSION = 1080;
 
@@ -74,13 +75,8 @@ export default function CreatePage() {
   async function suggestCaption() {
     setSuggesting(true);
     try {
-      const res = await fetch("/api/ai/caption", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hint: caption }),
-      });
-      const data = await res.json();
-      if (data.caption) setCaption(data.caption);
+      const suggested = await generateCaption(caption);
+      if (suggested) setCaption(suggested);
     } catch {
       setError("Couldn't reach the caption service.");
     } finally {
@@ -112,13 +108,8 @@ export default function CreatePage() {
 
     // The AI accounts react to your post once it's live.
     try {
-      const res = await fetch("/api/ai/comment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caption: caption.trim(), count: 3 }),
-      });
-      const data = await res.json();
-      (data.comments ?? []).forEach(
+      const generated = await generateComments(caption.trim(), 3);
+      generated.forEach(
         (
           c: { username: string; avatarSeed: string; text: string },
           i: number
