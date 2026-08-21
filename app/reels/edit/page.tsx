@@ -13,14 +13,12 @@ import {
   Video,
   Camera,
   Music2,
+  Plus,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
-import {
-  getTemplate,
-  FILTERS,
-  FilterId,
-  TransitionId,
-  templateDuration,
-} from "@/lib/reelTemplates";
+import { getTemplate, FILTERS, FilterId, TransitionId } from "@/lib/reelTemplates";
 import { ReelFrame } from "@/lib/reels";
 import { useApp, uid } from "@/lib/store";
 import { photoUrl } from "@/lib/seed";
@@ -101,6 +99,8 @@ function Editor() {
   const [musicId, setMusicId] = useState<string | undefined>();
   const [musicTitle, setMusicTitle] = useState("");
   const [musicVolume, setMusicVolume] = useState(0.65);
+  const [musicDuration, setMusicDuration] = useState(0);
+  const [musicStart, setMusicStart] = useState(0);
   const [songCredit, setSongCredit] = useState("");
 
   const fileInput = useRef<HTMLInputElement>(null);
@@ -165,6 +165,8 @@ function Editor() {
                   mediaId: record.id,
                   kind: "video",
                   imageUrl: undefined,
+                  trimStart: 0,
+                  sourceDuration: record.duration || undefined,
                   // Adopt the clip's own length, capped to keep reels snappy.
                   seconds: record.duration
                     ? Math.min(Math.max(record.duration, 1), 15)
@@ -180,7 +182,14 @@ function Editor() {
         setFrames((prev) =>
           prev.map((f, i) =>
             i === index
-              ? { ...f, mediaId: record.id, kind: "image", imageUrl: undefined }
+              ? {
+                  ...f,
+                  mediaId: record.id,
+                  kind: "image",
+                  imageUrl: undefined,
+                  trimStart: undefined,
+                  sourceDuration: undefined,
+                }
               : f
           )
         );
@@ -201,6 +210,8 @@ function Editor() {
       const record = await putMedia(file, "audio");
       setMusicId(record.id);
       setMusicTitle(file.name.replace(/\.[^.]+$/, ""));
+      setMusicDuration(record.duration || 0);
+      setMusicStart(0);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "That audio file could not be read."
@@ -214,8 +225,51 @@ function Editor() {
 
   function setSlotSeconds(index: number, seconds: number) {
     setFrames((prev) =>
-      prev.map((f, i) => (i === index ? { ...f, seconds } : f))
+      prev.map((f, i) => {
+        if (i !== index) return f;
+        const max = f.sourceDuration
+          ? f.sourceDuration - (f.trimStart ?? 0)
+          : Infinity;
+        return { ...f, seconds: Math.min(seconds, max) };
+      })
     );
+  }
+
+  function setSlotTrimStart(index: number, trimStart: number) {
+    setFrames((prev) =>
+      prev.map((f, i) => {
+        if (i !== index || !f.sourceDuration) return f;
+        const maxSeconds = f.sourceDuration - trimStart;
+        return {
+          ...f,
+          trimStart,
+          seconds: Math.min(f.seconds, maxSeconds),
+        };
+      })
+    );
+  }
+
+  function addSlot() {
+    setFrames((prev) => [
+      ...prev,
+      { seed: `${template!.id}-extra-${uid("s")}`, seconds: 3, text: "" },
+    ]);
+  }
+
+  function removeSlot(index: number) {
+    setFrames((prev) =>
+      prev.length > 1 ? prev.filter((_, i) => i !== index) : prev
+    );
+  }
+
+  function moveSlot(index: number, dir: -1 | 1) {
+    setFrames((prev) => {
+      const target = index + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   }
 
   async function suggestCaption() {
@@ -274,6 +328,7 @@ function Editor() {
         textStyle: template!.textStyle,
         musicMediaId: musicId,
         musicVolume,
+        musicStart,
         onProgress: setExportPct,
       });
 
@@ -292,6 +347,7 @@ function Editor() {
   }
 
   const filled = frames.filter((f) => f.mediaId || f.imageUrl).length;
+  const totalSeconds = frames.reduce((n, f) => n + f.seconds, 0);
   const preview = frames[Math.min(previewFrame, frames.length - 1)];
   const textClass =
     TEXT_STYLES[template.textStyle] ?? TEXT_STYLES["minimal-corner"];
@@ -306,7 +362,7 @@ function Editor() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold">{template.name}</p>
             <p className="text-[11px] leading-3 text-ig-muted">
-              {frames.length} clips · {Math.round(templateDuration(template))}s
+              {frames.length} clips · {Math.round(totalSeconds)}s
             </p>
           </div>
           <button
@@ -427,56 +483,86 @@ function Editor() {
         </div>
 
         {/* Clips */}
-        <p className="mt-6 text-[13px] font-semibold">Clips</p>
+        <div className="mt-6 flex items-center justify-between">
+          <p className="text-[13px] font-semibold">Clips</p>
+          <button
+            onClick={addSlot}
+            className="flex items-center gap-1 text-[13px] font-semibold text-ig-blue"
+          >
+            <Plus size={14} /> Add clip
+          </button>
+        </div>
         <div className="mt-2 space-y-2.5">
-          {frames.map((f, i) => (
+          {frames.map((f, i) => {
+            const maxLength = f.sourceDuration
+              ? Math.min(6, f.sourceDuration - (f.trimStart ?? 0))
+              : 6;
+            return (
             <div
               key={i}
               className="flex gap-3 rounded-xl border border-ig-border p-2.5"
             >
-              <div className="shrink-0">
-              <button
-                onClick={() => {
-                  setActiveSlot(i);
-                  setPreviewFrame(i);
-                  fileInput.current?.click();
-                }}
-                className="relative block aspect-[9/16] w-[54px] overflow-hidden rounded-lg bg-ig-bg"
-              >
-                {busySlot === i ? (
-                  <span className="flex h-full w-full items-center justify-center text-[9px] text-ig-muted">
-                    …
-                  </span>
-                ) : f.mediaId || f.imageUrl ? (
-                  <>
-                    <ReelMedia
-                      frame={f}
-                      playing={false}
-                      muted
-                      className="h-full w-full object-cover"
-                    />
-                    {f.kind === "video" && (
-                      <span className="absolute bottom-0.5 right-0.5 text-white drop-shadow">
-                        <Video size={11} />
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-ig-muted">
-                    <ImagePlus size={18} />
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveSlot(i);
-                  setPreviewFrame(i);
-                  cameraInput.current?.click();
-                }}
-                className="mt-1 flex w-[54px] items-center justify-center gap-1 rounded-md bg-[#efefef] py-1 text-[9px] font-semibold text-ig-text"
-              >
-                <Camera size={10} /> Record
-              </button>
+              <div className="flex shrink-0 flex-col items-center gap-1">
+                <button
+                  onClick={() => moveSlot(i, -1)}
+                  disabled={i === 0}
+                  aria-label="Move clip earlier"
+                  className="text-ig-muted disabled:opacity-20"
+                >
+                  <ChevronUp size={16} />
+                </button>
+                <div>
+                <button
+                  onClick={() => {
+                    setActiveSlot(i);
+                    setPreviewFrame(i);
+                    fileInput.current?.click();
+                  }}
+                  className="relative block aspect-[9/16] w-[54px] overflow-hidden rounded-lg bg-ig-bg"
+                >
+                  {busySlot === i ? (
+                    <span className="flex h-full w-full items-center justify-center text-[9px] text-ig-muted">
+                      …
+                    </span>
+                  ) : f.mediaId || f.imageUrl ? (
+                    <>
+                      <ReelMedia
+                        frame={f}
+                        playing={false}
+                        muted
+                        className="h-full w-full object-cover"
+                      />
+                      {f.kind === "video" && (
+                        <span className="absolute bottom-0.5 right-0.5 text-white drop-shadow">
+                          <Video size={11} />
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-ig-muted">
+                      <ImagePlus size={18} />
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveSlot(i);
+                    setPreviewFrame(i);
+                    cameraInput.current?.click();
+                  }}
+                  className="mt-1 flex w-[54px] items-center justify-center gap-1 rounded-md bg-[#efefef] py-1 text-[9px] font-semibold text-ig-text"
+                >
+                  <Camera size={10} /> Record
+                </button>
+                </div>
+                <button
+                  onClick={() => moveSlot(i, 1)}
+                  disabled={i === frames.length - 1}
+                  aria-label="Move clip later"
+                  className="text-ig-muted disabled:opacity-20"
+                >
+                  <ChevronDown size={16} />
+                </button>
               </div>
 
               <div className="min-w-0 flex-1">
@@ -484,23 +570,41 @@ function Editor() {
                   <p className="text-[12px] font-semibold text-ig-muted">
                     {i + 1}. {template.slots[i]?.label ?? "Clip"}
                   </p>
-                  {(f.mediaId || f.imageUrl) && (
-                    <button
-                      onClick={() =>
-                        setFrames((prev) =>
-                          prev.map((x, xi) =>
-                            xi === i
-                              ? { ...x, imageUrl: undefined, mediaId: undefined, kind: undefined }
-                              : x
+                  <div className="flex items-center gap-2.5">
+                    {(f.mediaId || f.imageUrl) && (
+                      <button
+                        onClick={() =>
+                          setFrames((prev) =>
+                            prev.map((x, xi) =>
+                              xi === i
+                                ? {
+                                    ...x,
+                                    imageUrl: undefined,
+                                    mediaId: undefined,
+                                    kind: undefined,
+                                    trimStart: undefined,
+                                    sourceDuration: undefined,
+                                  }
+                                : x
+                            )
                           )
-                        )
-                      }
-                      aria-label="Remove photo"
-                      className="text-ig-muted"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
+                        }
+                        aria-label="Remove media from this clip"
+                        className="text-ig-muted"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    {frames.length > 1 && (
+                      <button
+                        onClick={() => removeSlot(i)}
+                        aria-label="Delete this clip"
+                        className="text-ig-red"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <input
@@ -510,23 +614,68 @@ function Editor() {
                   className="mt-1 w-full rounded-md bg-[#efefef] px-2 py-1.5 text-[13px] outline-none placeholder:text-ig-muted"
                 />
 
-                <div className="mt-1.5 flex items-center gap-2">
-                  <input
-                    type="range"
-                    min={1}
-                    max={6}
-                    step={0.2}
-                    value={f.seconds}
-                    onChange={(e) => setSlotSeconds(i, Number(e.target.value))}
-                    className="h-1 flex-1 accent-ig-blue"
-                  />
-                  <span className="w-9 text-right text-[11px] tabular-nums text-ig-muted">
-                    {f.seconds.toFixed(1)}s
-                  </span>
-                </div>
+                {f.kind === "video" && f.sourceDuration ? (
+                  <>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="w-10 shrink-0 text-[10px] text-ig-muted">
+                        Start
+                      </span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.max(f.sourceDuration - 1, 0)}
+                        step={0.1}
+                        value={f.trimStart ?? 0}
+                        onChange={(e) => setSlotTrimStart(i, Number(e.target.value))}
+                        className="h-1 flex-1 accent-ig-blue"
+                      />
+                      <span className="w-9 text-right text-[11px] tabular-nums text-ig-muted">
+                        {(f.trimStart ?? 0).toFixed(1)}s
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="w-10 shrink-0 text-[10px] text-ig-muted">
+                        Length
+                      </span>
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={Math.max(maxLength, 0.5)}
+                        step={0.2}
+                        value={Math.min(f.seconds, Math.max(maxLength, 0.5))}
+                        onChange={(e) => setSlotSeconds(i, Number(e.target.value))}
+                        className="h-1 flex-1 accent-ig-blue"
+                      />
+                      <span className="w-9 text-right text-[11px] tabular-nums text-ig-muted">
+                        {f.seconds.toFixed(1)}s
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[10px] text-ig-muted">
+                      {f.sourceDuration.toFixed(1)}s clip · plays{" "}
+                      {(f.trimStart ?? 0).toFixed(1)}s–
+                      {((f.trimStart ?? 0) + f.seconds).toFixed(1)}s
+                    </p>
+                  </>
+                ) : (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <input
+                      type="range"
+                      min={1}
+                      max={6}
+                      step={0.2}
+                      value={f.seconds}
+                      onChange={(e) => setSlotSeconds(i, Number(e.target.value))}
+                      className="h-1 flex-1 accent-ig-blue"
+                    />
+                    <span className="w-9 text-right text-[11px] tabular-nums text-ig-muted">
+                      {f.seconds.toFixed(1)}s
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Music */}
@@ -543,6 +692,8 @@ function Editor() {
                   onClick={() => {
                     setMusicId(undefined);
                     setMusicTitle("");
+                    setMusicDuration(0);
+                    setMusicStart(0);
                   }}
                   aria-label="Remove music"
                   className="text-ig-muted"
@@ -565,8 +716,30 @@ function Editor() {
                   {Math.round(musicVolume * 100)}%
                 </span>
               </div>
+
+              {musicDuration > totalSeconds && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="w-10 shrink-0 text-[11px] text-ig-muted">
+                    Start
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(musicDuration - totalSeconds, 0)}
+                    step={0.5}
+                    value={musicStart}
+                    onChange={(e) => setMusicStart(Number(e.target.value))}
+                    className="h-1 flex-1 accent-ig-blue"
+                  />
+                  <span className="w-9 text-right text-[11px] tabular-nums text-ig-muted">
+                    {Math.round(musicStart)}s
+                  </span>
+                </div>
+              )}
+
               <p className="mt-1.5 text-[11px] text-ig-muted">
                 Mixed into the exported video. Your clips duck underneath it.
+                {musicDuration > totalSeconds && " Drag Start to pick which part of the song plays."}
               </p>
             </>
           ) : (

@@ -250,6 +250,8 @@ export interface RenderOptions {
   musicMediaId?: string;
   /** 0-1. Clip audio ducks as this rises. */
   musicVolume?: number;
+  /** Seconds into the track where playback starts — picks which part plays. */
+  musicStart?: number;
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;
 }
@@ -266,6 +268,7 @@ export async function renderReel({
   textStyle,
   musicMediaId,
   musicVolume = 0.65,
+  musicStart = 0,
   onProgress,
   signal,
 }: RenderOptions): Promise<RenderResult> {
@@ -300,7 +303,12 @@ export async function renderReel({
    * way every clip can stay muted (always autoplayable) and the sound still
    * lands in the export at the right moment.
    */
-  const schedule: { buffer: AudioBuffer; at: number; length: number }[] = [];
+  const schedule: {
+    buffer: AudioBuffer;
+    at: number;
+    length: number;
+    trimStart: number;
+  }[] = [];
   let music: AudioBuffer | null = null;
 
   if (audioCtx && audioDest && musicMediaId) {
@@ -323,7 +331,12 @@ export async function renderReel({
         try {
           const bytes = await (await fetch(clip.url)).arrayBuffer();
           const buffer = await audioCtx.decodeAudioData(bytes);
-          schedule.push({ buffer, at: offset, length: seconds });
+          schedule.push({
+            buffer,
+            at: offset,
+            length: seconds,
+            trimStart: clip.frame.trimStart ?? 0,
+          });
         } catch {
           /* silent clip — image, or a video with no decodable audio track */
         }
@@ -368,8 +381,9 @@ export async function renderReel({
       const node = audioCtx.createBufferSource();
       node.buffer = item.buffer;
       node.connect(clipGain);
-      // Trim to the slot length so audio can't run past its clip.
-      node.start(t0 + item.at, 0, Math.min(item.length, item.buffer.duration));
+      // Start at the same point the video was trimmed to, and stop with it.
+      const available = Math.max(item.buffer.duration - item.trimStart, 0);
+      node.start(t0 + item.at, item.trimStart, Math.min(item.length, available));
     }
 
     if (music) {
@@ -379,10 +393,16 @@ export async function renderReel({
 
       const node = audioCtx.createBufferSource();
       node.buffer = music;
+      const startAt = Math.min(musicStart, Math.max(music.duration - 0.1, 0));
+      const remaining = music.duration - startAt;
       // Loop a short track so it covers the whole reel.
-      node.loop = music.duration < totalSeconds;
+      node.loop = remaining < totalSeconds;
+      if (node.loop) {
+        node.loopStart = startAt;
+        node.loopEnd = music.duration;
+      }
       node.connect(musicGain);
-      node.start(t0, 0, node.loop ? totalSeconds : Math.min(totalSeconds, music.duration));
+      node.start(t0, startAt, node.loop ? totalSeconds : Math.min(totalSeconds, remaining));
 
       // Fade the last second so it doesn't cut off abruptly.
       const fadeAt = t0 + Math.max(totalSeconds - 1, 0);
@@ -450,8 +470,10 @@ function playClip(
     const started = performance.now();
     const filterCss = FILTERS[filter] ?? "none";
 
+    const trimStart = clip.frame.trimStart ?? 0;
+
     if (clip.video) {
-      clip.video.currentTime = 0;
+      clip.video.currentTime = trimStart;
       clip.video.loop = true;
       clip.video.muted = true;
       clip.video.play().catch(() => {});
@@ -461,6 +483,15 @@ function playClip(
       const now = performance.now();
       const elapsed = now - started;
       const t = Math.min(elapsed / durationMs, 1);
+
+      // Keep playback inside the trimmed window even if it's shorter than
+      // the source clip's own loop point.
+      if (clip.video) {
+        const windowEnd = trimStart + clip.frame.seconds;
+        if (clip.video.currentTime >= windowEnd || clip.video.currentTime < trimStart - 0.25) {
+          clip.video.currentTime = trimStart;
+        }
+      }
 
       if (signal?.aborted) {
         resolve();

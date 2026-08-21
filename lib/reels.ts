@@ -13,8 +13,13 @@ export interface ReelFrame {
   /** Legacy photo data URL, kept so reels made before video still play. */
   imageUrl?: string;
   seed: string;
+  /** How long this clip plays for, in seconds. */
   seconds: number;
   text: string;
+  /** Seconds into the source video where playback starts (video clips only). */
+  trimStart?: number;
+  /** Full length of the underlying video, for bounding the trim controls. */
+  sourceDuration?: number;
 }
 
 export interface Reel {
