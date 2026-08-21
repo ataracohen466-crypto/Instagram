@@ -26,9 +26,10 @@ import {
  */
 
 const DB_NAME = "instaai";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const ACCOUNTS = "accounts";
 const VAULTS = "vaults";
+const MEDIA = "media";
 const SESSION_KEY = "instaai.session";
 
 export interface AccountRecord {
@@ -48,6 +49,8 @@ function openDb(): Promise<IDBDatabase> {
         db.createObjectStore(ACCOUNTS, { keyPath: "username" });
       if (!db.objectStoreNames.contains(VAULTS))
         db.createObjectStore(VAULTS, { keyPath: "username" });
+      if (!db.objectStoreNames.contains(MEDIA))
+        db.createObjectStore(MEDIA, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -213,4 +216,24 @@ export function clearSession(): void {
   } catch {
     /* nothing to clear */
   }
+  activeKey = null;
+  activeUser = null;
 }
+
+/* The unlocked key, shared with the media store so blobs get the same
+ * encryption as the JSON payload. */
+let activeKey: CryptoKey | null = null;
+let activeUser: string | null = null;
+
+export function setActive(username: string, key: CryptoKey): void {
+  activeUser = username;
+  activeKey = key;
+}
+
+export function getActive(): { username: string; key: CryptoKey } | null {
+  return activeKey && activeUser
+    ? { username: activeUser, key: activeKey }
+    : null;
+}
+
+export { DB_NAME, DB_VERSION, openDb };

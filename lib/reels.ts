@@ -2,11 +2,15 @@ import { PERSONAS } from "./personas";
 import { Comment } from "./types";
 import { fallbackComment } from "./fallback";
 import { uid } from "./seed";
+import { assetUrl } from "./assets";
 import type { TransitionId, FilterId, TextStyleId } from "./reelTemplates";
 
-/** One frame of a template-built reel: the user's photo plus its overlay. */
+/** One clip of a template-built reel: the user's media plus its overlay. */
 export interface ReelFrame {
-  /** Data URL of a photo the user picked; falls back to `seed` when absent. */
+  /** Encrypted clip in the media store; the reel only keeps the id. */
+  mediaId?: string;
+  kind?: "video" | "image";
+  /** Legacy photo data URL, kept so reels made before video still play. */
   imageUrl?: string;
   seed: string;
   seconds: number;
@@ -24,6 +28,8 @@ export interface Reel {
   likedBy: string[];
   comments: Comment[];
   createdAt: number;
+  /** Bundled MP4 for the AI personas' own reels. */
+  videoSrc?: string;
   /** Present on reels the user built from a template. */
   frames?: ReelFrame[];
   templateId?: string;
@@ -71,6 +77,7 @@ export function buildSeedReels(): Reel[] {
       id: uid("r"),
       authorUsername: persona.username,
       authorAvatarSeed: persona.avatarSeed,
+      videoSrc: assetUrl(`/clips/${persona.id}.mp4`),
       frameSeeds: [
         `${persona.id}-reel-a`,
         `${persona.id}-reel-b`,

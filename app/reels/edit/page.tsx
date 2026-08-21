@@ -3,7 +3,16 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, ImagePlus, Play, Square, Sparkles, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ImagePlus,
+  Play,
+  Square,
+  Sparkles,
+  X,
+  Video,
+  Camera,
+} from "lucide-react";
 import {
   getTemplate,
   FILTERS,
@@ -15,6 +24,8 @@ import { ReelFrame } from "@/lib/reels";
 import { useApp, uid } from "@/lib/store";
 import { photoUrl } from "@/lib/seed";
 import { downscale } from "@/lib/image";
+import { putMedia } from "@/lib/media";
+import ReelMedia from "@/components/ReelMedia";
 import { generateCaption } from "@/lib/aiClient";
 import Photo from "@/components/Photo";
 
@@ -83,8 +94,10 @@ function Editor() {
   const [suggesting, setSuggesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [busySlot, setBusySlot] = useState<number | null>(null);
 
   const fileInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
 
   // Seed editor state from the chosen template.
   useEffect(() => {
@@ -129,16 +142,47 @@ function Editor() {
     );
   }
 
-  async function pickPhoto(file: File | undefined, index: number) {
+  async function pickClip(file: File | undefined, index: number) {
     if (!file) return;
     setError(null);
+    setBusySlot(index);
     try {
-      const dataUrl = await downscale(file, 9 / 16);
-      setFrames((prev) =>
-        prev.map((f, i) => (i === index ? { ...f, imageUrl: dataUrl } : f))
+      if (file.type.startsWith("video/")) {
+        const record = await putMedia(file, "video");
+        setFrames((prev) =>
+          prev.map((f, i) =>
+            i === index
+              ? {
+                  ...f,
+                  mediaId: record.id,
+                  kind: "video",
+                  imageUrl: undefined,
+                  // Adopt the clip's own length, capped to keep reels snappy.
+                  seconds: record.duration
+                    ? Math.min(Math.max(record.duration, 1), 15)
+                    : f.seconds,
+                }
+              : f
+          )
+        );
+      } else {
+        const dataUrl = await downscale(file, 9 / 16);
+        const blob = await (await fetch(dataUrl)).blob();
+        const record = await putMedia(blob, "image");
+        setFrames((prev) =>
+          prev.map((f, i) =>
+            i === index
+              ? { ...f, mediaId: record.id, kind: "image", imageUrl: undefined }
+              : f
+          )
+        );
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "That file could not be read."
       );
-    } catch {
-      setError("That file could not be read. Try a different image.");
+    } finally {
+      setBusySlot(null);
     }
   }
 
@@ -191,7 +235,7 @@ function Editor() {
     router.push("/reels");
   }
 
-  const filled = frames.filter((f) => f.imageUrl).length;
+  const filled = frames.filter((f) => f.mediaId || f.imageUrl).length;
   const preview = frames[Math.min(previewFrame, frames.length - 1)];
   const textClass =
     TEXT_STYLES[template.textStyle] ?? TEXT_STYLES["minimal-corner"];
@@ -226,15 +270,14 @@ function Editor() {
             className="relative aspect-[9/16] w-[150px] shrink-0 overflow-hidden rounded-xl bg-black"
             style={{ filter: FILTERS[filter] }}
           >
-            {preview?.imageUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
+            {preview && (preview.mediaId || preview.imageUrl) ? (
+              <ReelMedia
                 key={`p-${previewFrame}-${playing}`}
-                src={preview.imageUrl}
-                alt=""
-                className={`h-full w-full object-cover ${
-                  playing ? TRANSITION_CLASS[transition] : ""
-                }`}
+                frame={preview}
+                playing={playing}
+                muted={false}
+                className="h-full w-full object-cover"
+                animationClass={TRANSITION_CLASS[transition]}
               />
             ) : (
               <Photo
@@ -335,35 +378,64 @@ function Editor() {
               key={i}
               className="flex gap-3 rounded-xl border border-ig-border p-2.5"
             >
+              <div className="shrink-0">
               <button
                 onClick={() => {
                   setActiveSlot(i);
                   setPreviewFrame(i);
                   fileInput.current?.click();
                 }}
-                className="relative aspect-[9/16] w-[54px] shrink-0 overflow-hidden rounded-lg bg-ig-bg"
+                className="relative block aspect-[9/16] w-[54px] overflow-hidden rounded-lg bg-ig-bg"
               >
-                {f.imageUrl ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={f.imageUrl} alt="" className="h-full w-full object-cover" />
+                {busySlot === i ? (
+                  <span className="flex h-full w-full items-center justify-center text-[9px] text-ig-muted">
+                    …
+                  </span>
+                ) : f.mediaId || f.imageUrl ? (
+                  <>
+                    <ReelMedia
+                      frame={f}
+                      playing={false}
+                      muted
+                      className="h-full w-full object-cover"
+                    />
+                    {f.kind === "video" && (
+                      <span className="absolute bottom-0.5 right-0.5 text-white drop-shadow">
+                        <Video size={11} />
+                      </span>
+                    )}
+                  </>
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-ig-muted">
                     <ImagePlus size={18} />
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => {
+                  setActiveSlot(i);
+                  setPreviewFrame(i);
+                  cameraInput.current?.click();
+                }}
+                className="mt-1 flex w-[54px] items-center justify-center gap-1 rounded-md bg-[#efefef] py-1 text-[9px] font-semibold text-ig-text"
+              >
+                <Camera size={10} /> Record
+              </button>
+              </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <p className="text-[12px] font-semibold text-ig-muted">
                     {i + 1}. {template.slots[i]?.label ?? "Clip"}
                   </p>
-                  {f.imageUrl && (
+                  {(f.mediaId || f.imageUrl) && (
                     <button
                       onClick={() =>
                         setFrames((prev) =>
                           prev.map((x, xi) =>
-                            xi === i ? { ...x, imageUrl: undefined } : x
+                            xi === i
+                              ? { ...x, imageUrl: undefined, mediaId: undefined, kind: undefined }
+                              : x
                           )
                         )
                       }
@@ -423,10 +495,23 @@ function Editor() {
       <input
         ref={fileInput}
         type="file"
-        accept="image/*"
+        accept="video/*,image/*"
         hidden
         onChange={(e) => {
-          pickPhoto(e.target.files?.[0], activeSlot);
+          pickClip(e.target.files?.[0], activeSlot);
+          e.target.value = "";
+        }}
+      />
+
+      {/* `capture` asks the phone for its camera rather than the library. */}
+      <input
+        ref={cameraInput}
+        type="file"
+        accept="video/*"
+        capture="environment"
+        hidden
+        onChange={(e) => {
+          pickClip(e.target.files?.[0], activeSlot);
           e.target.value = "";
         }}
       />

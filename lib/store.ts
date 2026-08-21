@@ -2,7 +2,8 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
-import { readVault, writeVault } from "./vault";
+import { readVault, writeVault, setActive } from "./vault";
+import { clearMediaCache } from "./media";
 import { ChatMessage, Comment, Post, Profile } from "./types";
 import { buildSeedFeed, uid } from "./seed";
 import type { Reel } from "./reels";
@@ -58,6 +59,8 @@ export async function bindVault(
 ): Promise<void> {
   vaultUser = username;
   vaultKey = key;
+  // The media store encrypts clips with this same key.
+  setActive(username, key);
   await useApp.persist.rehydrate();
   // A brand-new account has no vault yet, so onRehydrateStorage may not fire.
   useApp.setState({ hydrated: true });
@@ -66,6 +69,8 @@ export async function bindVault(
 export function unbindVault(): void {
   vaultUser = null;
   vaultKey = null;
+  // Drop decrypted clip URLs so one account's media can't leak into the next.
+  clearMediaCache();
   useApp.setState({ profile: null, posts: [], reels: [], chats: {} });
 }
 

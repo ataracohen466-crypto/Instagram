@@ -18,7 +18,7 @@ import { useApp, MY_ID, uid } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
 import { generateComments } from "@/lib/aiClient";
 import { FILTERS } from "@/lib/reelTemplates";
-import Photo from "./Photo";
+import ReelMedia from "./ReelMedia";
 
 const FRAME_DURATION = 4200;
 
@@ -56,6 +56,7 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const deleteReel = useApp((s) => s.deleteReel);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const personaVideo = useRef<HTMLVideoElement>(null);
   const lastTap = useRef(0);
 
   const [active, setActive] = useState(false);
@@ -105,16 +106,24 @@ export default function ReelCard({ reel }: { reel: Reel }) {
 
   // Each frame holds for its own duration, so template pacing is respected.
   useEffect(() => {
-    if (!active || frameCount < 2) return;
+    if (reel.videoSrc || !active || frameCount < 2) return;
     const hold = (frames[frame % frameCount]?.seconds ?? 4) * 1000;
     const id = setTimeout(() => setFrame((f) => (f + 1) % frameCount), hold);
     return () => clearTimeout(id);
-  }, [active, frame, frameCount, frames]);
+  }, [active, frame, frameCount, frames, reel.videoSrc]);
 
   // Restart from the top whenever a reel scrolls back into view.
   useEffect(() => {
     if (!active) setFrame(0);
   }, [active]);
+
+  // Only the visible persona clip plays, so scrolling stays cheap.
+  useEffect(() => {
+    const el = personaVideo.current;
+    if (!el) return;
+    if (active) el.play().catch(() => {});
+    else el.pause();
+  }, [active, reel.videoSrc]);
 
   function like() {
     if (!liked) toggleReelLike(reel.id);
@@ -171,23 +180,40 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       ref={containerRef}
       className="relative h-[100dvh] w-full shrink-0 snap-start snap-always overflow-hidden bg-black"
     >
-      {frames.map((f, i) => (
-        <div
-          key={`${f.seed}-${i}-${i === frame ? "on" : "off"}`}
-          className={`absolute inset-0 transition-opacity duration-500 ${
-            i === frame ? "opacity-100" : "opacity-0"
-          }`}
+      {reel.videoSrc ? (
+        // The AI personas' reels are real video files.
+        <video
+          ref={personaVideo}
+          muted={muted}
+          playsInline
+          loop
+          preload="metadata"
+          className="absolute inset-0 h-full w-full object-cover"
           style={{ filter: filterCss }}
         >
-          <Photo
-            src={f.imageUrl ?? photoUrl(f.seed, 1080)}
-            seed={f.seed}
-            className={`h-full w-full object-cover ${
-              active && i === frame ? transitionClass : ""
+          {/* WebM first for browsers built without H.264; MP4 covers phones. */}
+          <source src={reel.videoSrc.replace(/\.mp4$/, ".webm")} type="video/webm" />
+          <source src={reel.videoSrc} type="video/mp4" />
+        </video>
+      ) : (
+        frames.map((f, i) => (
+          <div
+            key={`${f.seed}-${i}-${i === frame ? "on" : "off"}`}
+            className={`absolute inset-0 transition-opacity duration-500 ${
+              i === frame ? "opacity-100" : "opacity-0"
             }`}
-          />
-        </div>
-      ))}
+            style={{ filter: filterCss }}
+          >
+            <ReelMedia
+              frame={f}
+              playing={active && i === frame}
+              muted={muted}
+              className="h-full w-full object-cover"
+              animationClass={transitionClass}
+            />
+          </div>
+        ))
+      )}
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
 
@@ -208,7 +234,7 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       )}
 
       {/* Progress segments, one per frame */}
-      {frameCount > 1 && (
+      {!reel.videoSrc && frameCount > 1 && (
         <div className="pointer-events-none absolute inset-x-3 top-[52px] z-10 flex gap-1">
           {frames.map((_, i) => (
             <span
