@@ -167,10 +167,8 @@ function Editor() {
                   imageUrl: undefined,
                   trimStart: 0,
                   sourceDuration: record.duration || undefined,
-                  // Adopt the clip's own length, capped to keep reels snappy.
-                  seconds: record.duration
-                    ? Math.min(Math.max(record.duration, 1), 15)
-                    : f.seconds,
+                  // Defaults to the clip's full length — trim it shorter if you want.
+                  seconds: record.duration ? record.duration : f.seconds,
                 }
               : f
           )
@@ -494,8 +492,10 @@ function Editor() {
         </div>
         <div className="mt-2 space-y-2.5">
           {frames.map((f, i) => {
+            // Videos default to their own full length; the slider lets you
+            // trim shorter but never forces a cap on how long a clip plays.
             const maxLength = f.sourceDuration
-              ? Math.min(6, f.sourceDuration - (f.trimStart ?? 0))
+              ? f.sourceDuration - (f.trimStart ?? 0)
               : 6;
             return (
             <div
