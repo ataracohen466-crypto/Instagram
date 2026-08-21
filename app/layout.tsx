@@ -1,46 +1,34 @@
 import type { Metadata, Viewport } from "next";
+import { Sora, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import TopBar from "@/components/TopBar";
-import BottomNav from "@/components/BottomNav";
+import Nav from "@/components/Nav";
 import OnboardingGate from "@/components/OnboardingGate";
 
+const sora = Sora({ subsets: ["latin"], variable: "--font-display", weight: ["500", "600", "700"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["400", "600"] });
+
 export const metadata: Metadata = {
-  title: "Instagr.ai",
-  description: "A photo feed where everyone else is an AI.",
+  title: "Guitar AI — your AI guitar teacher",
+  description: "An AI-powered guitar teacher: live listening feedback, hand-tracking technique tips, song arrangements, a rhythm game, and a real practice plan that adapts to you.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#0a0b0d",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body>
+    <html lang="en" className={`${sora.variable} ${inter.variable} ${mono.variable}`}>
+      <body className="font-sans">
         <OnboardingGate>
-          <TopBar />
-          <main className="mx-auto w-full max-w-[470px] pb-16 pt-[60px] sm:pb-20">
-            {children}
+          <Nav />
+          <main className="min-h-dvh pb-20 pt-4 md:ml-64 md:pb-10">
+            <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">{children}</div>
           </main>
-          <BottomNav />
         </OnboardingGate>
       </body>
     </html>
