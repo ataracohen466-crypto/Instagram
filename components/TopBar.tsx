@@ -1,61 +1,54 @@
 "use client";
 
-import { Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Heart, MessageCircle, PlusSquare, ChevronLeft } from "lucide-react";
-import { useApp } from "@/lib/store";
-
-function TopBarInner() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const profile = useApp((s) => s.profile);
-
-  const isChat = /^\/messages\/chat\/?$/.test(pathname);
-  const isReels = /^\/reels\/?$/.test(pathname);
-  if (isChat || isReels) return null;
-
-  const onProfile = /^\/profile\/?$/.test(pathname);
-  const viewingSomeoneElse =
-    onProfile && searchParams.get("u") !== profile?.username;
-
-  return (
-    <header className="fixed inset-x-0 top-0 z-40 border-b border-ig-border bg-white">
-      <div className="mx-auto flex h-[60px] w-full max-w-[470px] items-center justify-between px-4">
-        {viewingSomeoneElse ? (
-          <Link href="/" aria-label="Back">
-            <ChevronLeft size={26} />
-          </Link>
-        ) : (
-          <Link href="/" className="ig-logo text-[28px] leading-none">
-            Instagr.ai
-          </Link>
-        )}
-
-        <nav className="flex items-center gap-5">
-          <Link href="/create" aria-label="Create post">
-            <PlusSquare size={24} strokeWidth={1.8} />
-          </Link>
-          <Link href="/activity" aria-label="Activity">
-            <Heart size={24} strokeWidth={1.8} />
-          </Link>
-          <Link href="/messages" aria-label="Messages" className="relative">
-            <MessageCircle size={24} strokeWidth={1.8} />
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
+import { Flame, Sparkles } from "lucide-react";
+import { useStore } from "@/lib/store";
 
 export default function TopBar() {
+  const hydrated = useStore((s) => s.hydrated);
+  const profile = useStore((s) => s.profile);
+
   return (
-    <Suspense
-      fallback={
-        <header className="fixed inset-x-0 top-0 z-40 h-[60px] border-b border-ig-border bg-white" />
-      }
-    >
-      <TopBarInner />
-    </Suspense>
+    <header className="fixed inset-x-0 top-0 z-40 border-b border-surface-line bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white">
+            <Sparkles size={16} />
+          </span>
+          <span className="text-[17px] font-bold tracking-tight text-ink">
+            Tutor<span className="text-brand-600">AI</span>
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          {hydrated ? (
+            <>
+              <Link
+                href="/progress"
+                className="chip"
+                title={`${profile.xp} XP total`}
+              >
+                Lv {profile.level}
+              </Link>
+              <Link
+                href="/progress"
+                className="chip gap-1"
+                title="Study streak"
+              >
+                <Flame
+                  size={13}
+                  className={
+                    profile.streakDays > 0 ? "text-orange-500" : "text-ink-faint"
+                  }
+                />
+                {profile.streakDays}
+              </Link>
+            </>
+          ) : (
+            <div className="skeleton h-7 w-24" />
+          )}
+        </div>
+      </div>
+    </header>
   );
 }

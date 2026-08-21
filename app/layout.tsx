@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import TopBar from "@/components/TopBar";
 import BottomNav from "@/components/BottomNav";
-import OnboardingGate from "@/components/OnboardingGate";
 
 export const metadata: Metadata = {
-  title: "Instagr.ai",
-  description: "A photo feed where everyone else is an AI.",
+  title: "TutorAI — study, practise, pass",
+  description:
+    "An AI tutor and exam-prep coach: turn your notes into summaries, flashcards, quizzes and a study plan that adapts to what you keep getting wrong.",
 };
 
 export const viewport: Viewport = {
@@ -22,26 +22,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap"
-          rel="stylesheet"
-        />
-      </head>
       <body>
-        <OnboardingGate>
-          <TopBar />
-          <main className="mx-auto w-full max-w-[470px] pb-16 pt-[60px] sm:pb-20">
-            {children}
-          </main>
-          <BottomNav />
-        </OnboardingGate>
+        <TopBar />
+        <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-[72px]">
+          {children}
+        </main>
+        <BottomNav />
       </body>
     </html>
   );
