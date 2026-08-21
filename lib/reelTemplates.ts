@@ -46,7 +46,12 @@ export type CategoryId =
   | "dump"
   | "pets"
   | "celebration"
-  | "work";
+  | "work"
+  | "sports"
+  | "gaming"
+  | "art"
+  | "cars"
+  | "seasonal";
 
 export interface TemplateSlot {
   label: string;
@@ -81,6 +86,11 @@ export const CATEGORIES: { id: CategoryId; label: string }[] = [
   { id: "pets", label: "Pets" },
   { id: "celebration", label: "Celebrations" },
   { id: "work", label: "Study & work" },
+  { id: "sports", label: "Sports" },
+  { id: "gaming", label: "Gaming" },
+  { id: "art", label: "Art & design" },
+  { id: "cars", label: "Cars" },
+  { id: "seasonal", label: "Seasonal" },
 ];
 
 /** CSS filter strings applied to each frame during playback. */
@@ -825,6 +835,853 @@ export const TEMPLATES: ReelTemplate[] = [
     ["Building", 2.2, "months of work"],
     ["Testing", 2.2, "almost there"],
     ["Launch", 3.2, "it's live 🚀"],
+  ]),
+
+  // ─── GRWM (more) ────────────────────────────────────────────────────
+  tpl("grwm-airport", "GRWM: Travel Day", "grwm", "Comfy fit, early flight.", "fade", "cool", "subtitle", "airport lounge lo-fi", "#60a5fa", [
+    ["4am alarm", 2.2, "4am flight"],
+    ["Skincare", 2, "moisturizer, spf skipped today"],
+    ["Comfy fit", 2.4, "airport fit"],
+    ["Bag check", 2, "passport, phone, headphones"],
+    ["Boarding", 2.8, "let's go ✈️"],
+  ]),
+  tpl("grwm-interview", "GRWM: Job Interview", "grwm", "Sharp, calm, ready.", "fade", "fade", "minimal-corner", "focused piano", "#334155", [
+    ["Nerves", 2.2, "interview at 10"],
+    ["Skincare", 2, "clean and simple"],
+    ["Makeup", 2.4, "polished, not much"],
+    ["Outfit", 2.6, "the blazer"],
+    ["Out the door", 2.8, "you've got this"],
+  ]),
+  tpl("grwm-firstdate", "GRWM: First Date", "grwm", "Nervous excited energy.", "blur", "golden", "handwritten", "butterflies acoustic", "#fb7185", [
+    ["Overthinking", 2.4, "what do I even wear"],
+    ["Makeup", 2.4, "soft glam, low effort look"],
+    ["Outfit changes", 2, "third outfit's the one"],
+    ["Ready", 3, "okay. okay okay okay."],
+  ]),
+  tpl("grwm-reunion", "GRWM: Reunion", "grwm", "Ten years later, best self.", "flash", "vivid", "bold-center", "confident strut", "#a855f7", [
+    ["The invite", 2, "high school reunion"],
+    ["Hair", 2.2, ""],
+    ["Makeup", 2.4, "glow up loading"],
+    ["Outfit", 2.6, "not the same person"],
+    ["Ready", 3, "let's go show off"],
+  ]),
+  tpl("grwm-rainy", "Rainy Day GRWM", "grwm", "Cosy, slow, indoors energy.", "fade", "dreamy", "minimal-corner", "rain and lo-fi", "#64748b", [
+    ["Grey skies", 2.4, "rain again"],
+    ["Skincare", 2.2, ""],
+    ["Comfy fit", 2.4, "sweater weather"],
+    ["Tea", 2.6, "tea before anything else"],
+  ]),
+  tpl("grwm-photoshoot", "GRWM: Photoshoot", "grwm", "Full glam build-up.", "flash", "vivid", "bold-center", "editorial build", "#ec4899", [
+    ["Bare face", 2.2, "shoot day"],
+    ["Base", 2.2, "full coverage"],
+    ["Eyes", 2.4, "sharp wing"],
+    ["Hair", 2.4, "big hair, bigger energy"],
+    ["Set", 3, "let's shoot"],
+  ]),
+  tpl("grwm-firstday", "GRWM: First Day", "grwm", "New job, new school, new gym.", "cut", "warm", "subtitle", "fresh start pop", "#22c55e", [
+    ["Can't sleep", 2.2, "first day tomorrow... today"],
+    ["Skincare", 2, ""],
+    ["Outfit", 2.6, "first impressions fit"],
+    ["Mirror check", 2.2, "one more look"],
+    ["Out the door", 2.8, "new chapter"],
+  ]),
+  tpl("grwm-prom", "GRWM: Prom", "grwm", "Full glam, slow reveal.", "fade", "golden", "bold-center", "orchestral pop", "#c026d3", [
+    ["Getting started", 2.4, "prom night"],
+    ["Hair", 2.4, ""],
+    ["Makeup", 2.6, ""],
+    ["Dress", 2.8, "the dress"],
+    ["Full look", 3.4, "ready ✨"],
+  ]),
+  tpl("grwm-hangover", "GRWM: Hangover Recovery", "grwm", "Slow, honest, no filter.", "blur", "fade", "minimal-corner", "sleepy lo-fi", "#94a3b8", [
+    ["Regret", 2.4, "why did I do that"],
+    ["Water", 2, "water. so much water."],
+    ["Skincare", 2.2, "bare minimum"],
+    ["Recovery fit", 2.6, "hoodie and prayers"],
+  ]),
+  tpl("grwm-winter", "GRWM: Winter", "grwm", "Layers on layers.", "fade", "cool", "subtitle", "cosy winter loop", "#0ea5e9", [
+    ["Cold start", 2.2, "-5 degrees today"],
+    ["Skincare", 2, "extra moisturizer"],
+    ["Layer 1", 1.8, ""],
+    ["Layer 2", 1.8, ""],
+    ["Coat", 2.4, "finally warm"],
+  ]),
+
+  // ─── Recaps (more) ───────────────────────────────────────────────────
+  tpl("recap-decade", "Decade Recap", "recap", "Ten years, one reel.", "fade", "film", "counter", "epic build", "#f59e0b", [
+    ["2016", 1.6, "'16"],
+    ["2018", 1.6, "'18"],
+    ["2020", 1.6, "'20"],
+    ["2022", 1.6, "'22"],
+    ["2024", 1.6, "'24"],
+    ["Now", 3, "a whole decade"],
+  ]),
+  tpl("recap-quarter", "Quarterly Recap", "recap", "Three months, condensed.", "slide", "cool", "counter", "corporate-ish beat", "#3b82f6", [
+    ["Month 1", 2, "month 1"],
+    ["Month 2", 2, "month 2"],
+    ["Month 3", 2, "month 3"],
+    ["Wrap", 2.8, "onto next quarter"],
+  ]),
+  tpl("recap-friendship", "Friendship Recap", "recap", "Years of one friendship.", "fade", "warm", "handwritten", "nostalgic strings", "#fbbf24", [
+    ["Day one", 2.4, "how we met"],
+    ["Middle", 2.2, ""],
+    ["More", 2.2, ""],
+    ["Now", 3, "still my person"],
+  ]),
+  tpl("recap-pet-year", "Pet's Year", "recap", "A year with your pet.", "fade", "warm", "counter", "playful piano", "#f97316", [
+    ["January", 2, "jan"],
+    ["Spring", 2, "spring"],
+    ["Summer", 2, "summer"],
+    ["Now", 3, "best year yet"],
+  ]),
+  tpl("recap-fitness-year", "Fitness Year Recap", "recap", "Twelve months of progress.", "zoom", "vivid", "counter", "motivational anthem", "#22c55e", [
+    ["Jan", 1.6, "jan — starting out"],
+    ["Apr", 1.6, "apr"],
+    ["Jul", 1.6, "jul"],
+    ["Oct", 1.6, "oct"],
+    ["Dec", 3, "a whole year of showing up"],
+  ]),
+  tpl("recap-city", "A Year in This City", "recap", "One place, many seasons.", "fade", "film", "subtitle", "urban ambient", "#64748b", [
+    ["Spring", 2.2, "spring"],
+    ["Summer", 2.2, "summer"],
+    ["Fall", 2.2, "fall"],
+    ["Winter", 2.6, "winter — home"],
+  ]),
+  tpl("recap-project", "Project Recap", "recap", "From first sketch to finished.", "slide", "cool", "counter", "build montage", "#0891b2", [
+    ["Sketch", 2.2, "day 1"],
+    ["Progress", 2.2, ""],
+    ["Setback", 2, "almost gave up here"],
+    ["Finished", 3, "done."],
+  ]),
+  tpl("recap-relationship-year", "Us: One Year", "recap", "A relationship's first year.", "fade", "golden", "handwritten", "warm love song", "#fb7185", [
+    ["First date", 2.4, "one year ago"],
+    ["Early days", 2.2, ""],
+    ["Adventures", 2.2, ""],
+    ["Today", 3.2, "365 days with you"],
+  ]),
+
+  // ─── Travel (more) ───────────────────────────────────────────────────
+  tpl("travel-solo", "Solo Trip Diary", "travel", "Just you and the map.", "fade", "film", "handwritten", "wandering guitar", "#0d9488", [
+    ["Landing alone", 2.4, "first solo trip"],
+    ["Getting lost", 2.2, "gloriously lost"],
+    ["A meal alone", 2.2, "table for one"],
+    ["A new friend", 2.2, ""],
+    ["Home", 3, "would do it again"],
+  ]),
+  tpl("travel-budget", "Budget Travel Tips", "travel", "How to do it cheap.", "cut", "vivid", "counter", "upbeat tips loop", "#16a34a", [
+    ["Intro", 2, "did this trip for $40/day"],
+    ["Tip 1", 2.2, "1. book at odd hours"],
+    ["Tip 2", 2.2, "2. eat where locals eat"],
+    ["Tip 3", 2.2, "3. walk everywhere"],
+    ["Outro", 2.6, "save this"],
+  ]),
+  tpl("travel-mountain", "Mountain Trip", "travel", "The climb and the view.", "zoom", "cool", "subtitle", "epic ambient rise", "#0284c7", [
+    ["The trailhead", 2.2, "6am start"],
+    ["Halfway", 2.2, "halfway, dying"],
+    ["Near the top", 2.2, "almost there"],
+    ["Summit", 3.4, "worth every step"],
+  ]),
+  tpl("travel-desert", "Desert Trip", "travel", "Sand, sun, silence.", "fade", "golden", "minimal-corner", "desert drone", "#d97706", [
+    ["Arrival", 2.4, ""],
+    ["Dunes", 2.4, ""],
+    ["Sunset", 2.6, "no wifi, no problem"],
+    ["Stars", 3, "best sky I've seen"],
+  ]),
+  tpl("travel-island", "Island Hopping", "travel", "One boat, many islands.", "whip", "vivid", "counter", "tropical bounce", "#06b6d4", [
+    ["Island 1", 2, "island 1"],
+    ["Island 2", 2, "island 2"],
+    ["Island 3", 2, "island 3"],
+    ["Best one", 2.8, "island 3 wins"],
+  ]),
+  tpl("travel-europe", "Europe in 7 Days", "travel", "Multi-city speedrun.", "slide", "film", "counter", "eurotrip loop", "#8b5cf6", [
+    ["City 1", 1.8, "day 1-2"],
+    ["City 2", 1.8, "day 3-4"],
+    ["City 3", 1.8, "day 5-6"],
+    ["Home", 2.8, "day 7 — exhausted, happy"],
+  ]),
+  tpl("travel-camping", "Camping Trip", "travel", "Off grid for the weekend.", "fade", "film", "subtitle", "campfire acoustic", "#65a30d", [
+    ["Setting up", 2.2, "tent's up"],
+    ["Campfire", 2.4, ""],
+    ["Stars", 2.4, "no signal, better sleep"],
+    ["Morning", 2.8, "coffee outside"],
+  ]),
+  tpl("travel-firstflight", "First Time Abroad", "travel", "The very first trip out.", "blur", "dreamy", "handwritten", "wonder strings", "#38bdf8", [
+    ["The airport", 2.4, "first time leaving the country"],
+    ["Landing", 2.4, ""],
+    ["First view", 2.6, "it's real"],
+    ["Home again", 3, "changed, a little"],
+  ]),
+  tpl("travel-nightlife", "City Nightlife", "travel", "After dark in a new place.", "flash", "moody", "bold-center", "night pulse", "#d946ef", [
+    ["Sunset", 2, ""],
+    ["Streets lit up", 2.2, ""],
+    ["Out late", 2.2, ""],
+    ["3am walk home", 2.8, "best night"],
+  ]),
+  tpl("travel-waterfall", "Waterfall Hike", "travel", "The trail and the payoff.", "zoom", "vivid", "subtitle", "flowing ambient", "#0891b2", [
+    ["Trailhead", 2.2, ""],
+    ["Getting closer", 2.2, "hear it before you see it"],
+    ["The falls", 3.2, "there it is"],
+  ]),
+
+  // ─── Food (more) ───────────────────────────────────────────────────
+  tpl("food-streetfood", "Street Food Tour", "food", "Eating your way down the block.", "cut", "vivid", "subtitle", "market energy", "#dc2626", [
+    ["Stall 1", 2, "stall 1"],
+    ["Stall 2", 2, "stall 2"],
+    ["Stall 3", 2, "stall 3"],
+    ["Verdict", 2.6, "stall 2 wins"],
+  ]),
+  tpl("food-homemade", "Making It From Scratch", "food", "No shortcuts today.", "fade", "warm", "subtitle", "kitchen warmth", "#f59e0b", [
+    ["Ingredients", 2.2, "from scratch today"],
+    ["Prep", 2.4, ""],
+    ["Cooking", 2.4, ""],
+    ["Plated", 3, "worth the effort"],
+  ]),
+  tpl("food-vegan", "Vegan for a Day", "food", "Plant-based, three meals.", "slide", "cool", "subtitle", "fresh and light", "#22c55e", [
+    ["Breakfast", 2.2, "vegan breakfast"],
+    ["Lunch", 2.2, "vegan lunch"],
+    ["Dinner", 2.4, "vegan dinner"],
+    ["Verdict", 2.6, "actually didn't miss anything"],
+  ]),
+  tpl("food-dessert", "Dessert Only Day", "food", "Sugar, unapologetically.", "flash", "vivid", "bold-center", "sweet tooth pop", "#ec4899", [
+    ["Dessert 1", 2, ""],
+    ["Dessert 2", 2, ""],
+    ["Dessert 3", 2, ""],
+    ["No regrets", 2.6, "worth it"],
+  ]),
+  tpl("food-grill", "Grill Day", "food", "Fire, smoke, good company.", "cut", "warm", "subtitle", "backyard groove", "#b91c1c", [
+    ["Fire up", 2.2, "grill's hot"],
+    ["On the grill", 2.4, ""],
+    ["Plated", 2.4, ""],
+    ["Table", 2.8, "best part of summer"],
+  ]),
+  tpl("food-noodles", "Noodle Deep Dive", "food", "One dish, every angle.", "zoom", "vivid", "minimal-corner", "slurpy fun beat", "#ea580c", [
+    ["The bowl", 2.4, ""],
+    ["The pull", 2.4, ""],
+    ["First bite", 3, "worth the wait"],
+  ]),
+  tpl("food-brewing", "Coffee Brewing Ritual", "food", "The morning ceremony.", "fade", "warm", "minimal-corner", "quiet morning jazz", "#78350f", [
+    ["Grinding", 2.2, ""],
+    ["Blooming", 2.2, ""],
+    ["Pouring", 2.4, ""],
+    ["First sip", 2.8, "perfect"],
+  ]),
+  tpl("food-picnic", "Picnic Spread", "food", "Blanket, basket, sunshine.", "slide", "golden", "handwritten", "soft acoustic pop", "#fbbf24", [
+    ["Setting up", 2.2, ""],
+    ["The spread", 2.6, "the spread"],
+    ["Golden light", 2.6, ""],
+    ["Perfect day", 3, ""],
+  ]),
+  tpl("food-latenight", "Late Night Snack Run", "food", "3am cravings, no regrets.", "whip", "moody", "bold-center", "late night groove", "#7c2d12", [
+    ["The craving", 2, "2am and I need this"],
+    ["The drive", 2, ""],
+    ["The snack", 2.4, ""],
+    ["Worth it", 2.6, "no regrets"],
+  ]),
+
+  // ─── Fitness (more) ──────────────────────────────────────────────────
+  tpl("fit-homeworkout", "Home Workout", "fitness", "No gym, no excuses.", "cut", "vivid", "counter", "home hype beat", "#f97316", [
+    ["Setup", 1.8, "living room gym"],
+    ["Move 1", 1.8, "3 x 15"],
+    ["Move 2", 1.8, "3 x 12"],
+    ["Move 3", 1.8, "3 x 20"],
+    ["Done", 2.6, "no equipment needed"],
+  ]),
+  tpl("fit-yoga", "Yoga Flow", "fitness", "Slow, breath-led movement.", "fade", "dreamy", "minimal-corner", "meditative pad", "#a7f3d0", [
+    ["Mat down", 2.4, "20 minutes for me"],
+    ["Pose 1", 2.2, ""],
+    ["Pose 2", 2.2, ""],
+    ["Savasana", 3, "still, finally"],
+  ]),
+  tpl("fit-swim", "Swim Session", "fitness", "Laps and lane lines.", "slide", "cool", "counter", "water rhythm", "#0891b2", [
+    ["Pool deck", 2, "swim day"],
+    ["Warm up", 2, "200m warm up"],
+    ["Main set", 2.2, "the main set"],
+    ["Done", 2.6, "20 laps done"],
+  ]),
+  tpl("fit-climbing", "Climbing Session", "fitness", "Send after send.", "whip", "moody", "bold-center", "focused climb beat", "#78716c", [
+    ["Chalk up", 2, ""],
+    ["The attempt", 2.4, "third try's the one"],
+    ["The send", 3, "SENT IT"],
+  ]),
+  tpl("fit-cycling", "Cycling Ride", "fitness", "Miles and open road.", "slide", "vivid", "subtitle", "pedal tempo", "#0ea5e9", [
+    ["Start", 2, "km 0"],
+    ["Halfway", 2.2, "km 20"],
+    ["The hill", 2.2, "the climb"],
+    ["Finish", 3, "km 45 ✅"],
+  ]),
+  tpl("fit-boxing", "Boxing Workout", "fitness", "Bag work, sweat, focus.", "flash", "moody", "bold-center", "punchy bass drop", "#dc2626", [
+    ["Wraps on", 2, ""],
+    ["Combos", 2.2, "1-2-3-hook"],
+    ["Bag work", 2.2, ""],
+    ["Done", 2.6, "gloves off"],
+  ]),
+  tpl("fit-firstgym", "First Gym Session", "fitness", "Nervous, but showed up.", "fade", "cool", "subtitle", "encouraging beat", "#22c55e", [
+    ["Walking in", 2.4, "first time here"],
+    ["Figuring it out", 2.2, "googling how to use this"],
+    ["Getting through it", 2.2, ""],
+    ["Done", 2.8, "came back tomorrow"],
+  ]),
+  tpl("fit-couplesworkout", "Workout Together", "fitness", "Training as a team.", "cut", "vivid", "sticker", "team energy beat", "#f472b6", [
+    ["Warm up", 2, ""],
+    ["Partner move 1", 2.2, ""],
+    ["Partner move 2", 2.2, ""],
+    ["High five", 2.6, "team effort"],
+  ]),
+
+  // ─── Outfits (more) ──────────────────────────────────────────────────
+  tpl("outfit-work", "Work Outfit Rotation", "outfit", "Five days, five looks.", "slide", "fade", "counter", "office chic", "#475569", [
+    ["Mon", 1.8, "mon"],
+    ["Tue", 1.8, "tue"],
+    ["Wed", 1.8, "wed"],
+    ["Thu", 1.8, "thu"],
+    ["Fri", 2.4, "fri — casual friday"],
+  ]),
+  tpl("outfit-capsule", "Capsule Wardrobe", "outfit", "Ten pieces, endless outfits.", "cut", "none", "counter", "minimalist groove", "#78716c", [
+    ["The pieces", 2.2, "10 pieces"],
+    ["Look 1", 1.8, "look 1"],
+    ["Look 2", 1.8, "look 2"],
+    ["Look 3", 1.8, "look 3"],
+    ["Look 4", 2.2, "look 4 — my favourite"],
+  ]),
+  tpl("outfit-festival", "Festival Fit", "outfit", "Bold, bright, comfortable.", "flash", "vivid", "sticker", "festival anthem", "#eab308", [
+    ["Getting dressed", 2.2, "festival day"],
+    ["Details", 2.2, ""],
+    ["Full look", 2.8, "ready to dance"],
+  ]),
+  tpl("outfit-rainy-day", "Rainy Day Fit", "outfit", "Cute but weatherproof.", "fade", "cool", "subtitle", "umbrella pop", "#64748b", [
+    ["Checking the weather", 2, "raining all day"],
+    ["Outfit", 2.4, "still want to look cute"],
+    ["Boots", 2, ""],
+    ["Out the door", 2.6, "waterproof and stylish"],
+  ]),
+  tpl("outfit-secondhand", "Secondhand Only", "outfit", "Entire fit, zero new items.", "cut", "film", "sticker", "sustainable groove", "#84cc16", [
+    ["The challenge", 2, "outfit is 100% secondhand"],
+    ["Piece 1", 1.8, "$4"],
+    ["Piece 2", 1.8, "$9"],
+    ["Piece 3", 1.8, "$6"],
+    ["Full look", 2.8, "$19 total"],
+  ]),
+  tpl("outfit-monochrome", "Monochrome Fit", "outfit", "One colour, head to toe.", "fade", "vivid", "minimal-corner", "clean runway beat", "#0f172a", [
+    ["Top", 2, ""],
+    ["Bottom", 2, ""],
+    ["Shoes", 2, ""],
+    ["Full look", 2.8, "all one colour"],
+  ]),
+  tpl("outfit-layering", "Layering Tutorial", "outfit", "How the pieces stack.", "cut", "warm", "subtitle", "cosy tutorial beat", "#b45309", [
+    ["Base layer", 2, "1. base layer"],
+    ["Mid layer", 2, "2. add this"],
+    ["Outer layer", 2.2, "3. top it off"],
+    ["Final", 2.6, "warm and put together"],
+  ]),
+  tpl("outfit-datenight", "Date Night Fit", "outfit", "Confidence, dialed up.", "blur", "golden", "handwritten", "sultry r&b", "#be185d", [
+    ["Options", 2.2, "trying everything"],
+    ["The one", 2.6, "this one"],
+    ["Details", 2.2, ""],
+    ["Ready", 3, "he's not ready for this"],
+  ]),
+
+  // ─── Aesthetic (more) ────────────────────────────────────────────────
+  tpl("aes-pastel", "Pastel Dreams", "aesthetic", "Soft colour, softer mood.", "fade", "dreamy", "minimal-corner", "soft synth pad", "#f9a8d4", [
+    ["Frame 1", 2.8, ""],
+    ["Frame 2", 2.8, ""],
+    ["Frame 3", 3.2, ""],
+  ]),
+  tpl("aes-citylights", "City Lights", "aesthetic", "Bokeh and motion blur.", "blur", "moody", "minimal-corner", "ambient city hum", "#6366f1", [
+    ["Frame 1", 2.6, ""],
+    ["Frame 2", 2.6, ""],
+    ["Frame 3", 2.8, ""],
+    ["Frame 4", 3, ""],
+  ]),
+  tpl("aes-nature", "Slow Nature", "aesthetic", "Leaves, light, stillness.", "fade", "vivid", "minimal-corner", "field recording ambient", "#16a34a", [
+    ["Frame 1", 3, ""],
+    ["Frame 2", 3, ""],
+    ["Frame 3", 3.2, ""],
+  ]),
+  tpl("aes-rainywindow", "Rain on the Window", "aesthetic", "Grey skies, cosy inside.", "blur", "cool", "minimal-corner", "rain ambient piano", "#94a3b8", [
+    ["Frame 1", 3.2, ""],
+    ["Frame 2", 3.2, ""],
+    ["Frame 3", 3.4, ""],
+  ]),
+  tpl("aes-symmetry", "Symmetry Study", "aesthetic", "Perfectly centred frames.", "cut", "bw", "minimal-corner", "clean minimal beat", "#404040", [
+    ["Frame 1", 2.8, ""],
+    ["Frame 2", 2.8, ""],
+    ["Frame 3", 2.8, ""],
+    ["Frame 4", 3, ""],
+  ]),
+  tpl("aes-candlelight", "Candlelight", "aesthetic", "Warm, low, intimate.", "fade", "golden", "handwritten", "warm acoustic hush", "#f59e0b", [
+    ["Frame 1", 3, ""],
+    ["Frame 2", 3.2, ""],
+    ["Frame 3", 3.4, ""],
+  ]),
+  tpl("aes-doubleexposure", "Double Exposure Feel", "aesthetic", "Layered, dreamy blends.", "blur", "dreamy", "minimal-corner", "ethereal pad", "#a855f7", [
+    ["Layer 1", 2.6, ""],
+    ["Layer 2", 2.6, ""],
+    ["Blend", 3, ""],
+  ]),
+  tpl("aes-longexposure", "Long Exposure Lights", "aesthetic", "Light trails at night.", "flash", "moody", "minimal-corner", "night pulse ambient", "#4c1d95", [
+    ["Frame 1", 2.8, ""],
+    ["Frame 2", 2.8, ""],
+    ["Frame 3", 3.2, ""],
+  ]),
+  tpl("aes-textures", "Texture Study", "aesthetic", "Close, tactile, quiet.", "cut", "film", "minimal-corner", "quiet field tape", "#a16207", [
+    ["Frame 1", 2.6, ""],
+    ["Frame 2", 2.6, ""],
+    ["Frame 3", 2.6, ""],
+    ["Frame 4", 2.8, ""],
+  ]),
+
+  // ─── Day in the life (more) ──────────────────────────────────────────
+  tpl("dail-college", "Day in College", "daily", "Classes, coffee, chaos.", "cut", "vivid", "subtitle", "campus energy", "#3b82f6", [
+    ["8am class", 2, "8am — barely made it"],
+    ["Library", 2.2, "library grind"],
+    ["Lunch", 2, ""],
+    ["Evening class", 2.2, ""],
+    ["Night", 2.6, "one more assignment"],
+  ]),
+  tpl("dail-newmom", "Day as a New Parent", "daily", "Beautiful chaos.", "fade", "warm", "subtitle", "gentle lullaby beat", "#fda4af", [
+    ["Early wake", 2.2, "5am — again"],
+    ["Feeding", 2.2, ""],
+    ["Nap time", 2, "nap time = my time"],
+    ["Evening", 2.4, ""],
+    ["Bedtime", 2.8, "worth every second"],
+  ]),
+  tpl("dail-nurse", "Day as a Nurse", "daily", "12-hour shift, condensed.", "cut", "cool", "subtitle", "steady focus beat", "#0891b2", [
+    ["Clock in", 2, "6am shift start"],
+    ["Rounds", 2.2, ""],
+    ["Lunch break", 1.8, "lunch at 2pm, finally"],
+    ["Afternoon", 2.2, ""],
+    ["Clock out", 2.6, "12 hours done"],
+  ]),
+  tpl("dail-freelancer", "Day as a Freelancer", "daily", "No boss, no schedule.", "slide", "fade", "subtitle", "flexible lo-fi", "#8b5cf6", [
+    ["Late start", 2.2, "wake up whenever"],
+    ["Coffee shop office", 2.2, ""],
+    ["Deep work", 2.2, ""],
+    ["Done by 3", 2.8, "that's the job done"],
+  ]),
+  tpl("dail-farmer", "Day on the Farm", "daily", "Up with the sun.", "fade", "warm", "subtitle", "rural morning strings", "#65a30d", [
+    ["Sunrise", 2.4, "5am start"],
+    ["Animals", 2.2, ""],
+    ["Fieldwork", 2.4, ""],
+    ["Sunset", 2.8, "day's work done"],
+  ]),
+  tpl("dail-minimalist", "Minimalist Morning", "daily", "Slow, quiet, intentional.", "fade", "fade", "minimal-corner", "calm ambient", "#e5e5e5", [
+    ["Wake", 2.4, "no phone for the first hour"],
+    ["Tea", 2.2, ""],
+    ["Journal", 2.2, ""],
+    ["Ready", 2.8, "best way to start"],
+  ]),
+  tpl("dail-nightshift", "Night Shift Life", "daily", "Working while the world sleeps.", "blur", "moody", "subtitle", "nocturnal ambient", "#1e1b4b", [
+    ["Clock in", 2.2, "10pm start"],
+    ["Midnight", 2.2, ""],
+    ["3am", 2.2, "the hardest hour"],
+    ["Sunrise", 2.8, "shift's over"],
+  ]),
+
+  // ─── Before & after (more) ───────────────────────────────────────────
+  tpl("ba-nails", "Nail Transformation", "beforeafter", "Chipped to fresh set.", "flash", "vivid", "bold-center", "glam reveal", "#ec4899", [
+    ["Before", 2.4, "before"],
+    ["Process", 2.2, ""],
+    ["After", 3, "after 💅"],
+  ]),
+  tpl("ba-garden", "Garden Glow Up", "beforeafter", "Overgrown to organised.", "fade", "vivid", "counter", "growth swell", "#16a34a", [
+    ["Before", 2.6, "before"],
+    ["Clearing", 2.2, ""],
+    ["Planting", 2.2, ""],
+    ["After", 3.2, "after 🌿"],
+  ]),
+  tpl("ba-carwash", "Car Detail", "beforeafter", "Filthy to showroom.", "cut", "vivid", "counter", "satisfying wash beat", "#0ea5e9", [
+    ["Before", 2.4, "before"],
+    ["Washing", 2.2, ""],
+    ["Detailing", 2.2, ""],
+    ["After", 3, "after ✨"],
+  ]),
+  tpl("ba-tattoo", "Tattoo Healing", "beforeafter", "Fresh ink to healed.", "fade", "moody", "counter", "grit and grace", "#0f172a", [
+    ["Fresh", 2.6, "day 1"],
+    ["Healing", 2.2, "day 7"],
+    ["Healed", 3.2, "day 30 — healed"],
+  ]),
+  tpl("ba-closet", "Closet Organisation", "beforeafter", "Chaos to color-coded.", "cut", "fade", "counter", "organised satisfaction", "#a855f7", [
+    ["Before", 2.6, "before"],
+    ["Sorting", 2.2, ""],
+    ["Folding", 2.2, ""],
+    ["After", 3.2, "after 🤍"],
+  ]),
+  tpl("ba-skincare-journey", "Skincare Journey", "beforeafter", "Months of consistency.", "fade", "warm", "counter", "gentle progress swell", "#fda4af", [
+    ["Month 1", 2.6, "month 1"],
+    ["Month 2", 2.4, "month 2"],
+    ["Month 3", 2.4, "month 3"],
+    ["Now", 3.2, "consistency pays off"],
+  ]),
+
+  // ─── Photo dumps (more) ──────────────────────────────────────────────
+  tpl("dump-summer", "Summer Dump", "dump", "The whole season, unsorted.", "cut", "golden", "handwritten", "sunny shuffle", "#fb923c", [
+    ["1", 1.8, ""],
+    ["2", 1.8, ""],
+    ["3", 1.8, ""],
+    ["4", 1.8, ""],
+    ["5", 2.6, "summer 2025"],
+  ]),
+  tpl("dump-concert", "Concert Dump", "dump", "Blurry, loud, worth it.", "flash", "vivid", "sticker", "live energy loop", "#d946ef", [
+    ["1", 1.6, ""],
+    ["2", 1.6, ""],
+    ["3", 1.6, ""],
+    ["4", 2.4, "best night"],
+  ]),
+  tpl("dump-family", "Family Dump", "dump", "The people who matter most.", "fade", "warm", "handwritten", "warm family strings", "#f59e0b", [
+    ["1", 2, ""],
+    ["2", 2, ""],
+    ["3", 2, ""],
+    ["4", 2.6, "my whole world"],
+  ]),
+  tpl("dump-nofilter", "No Filter Dump", "dump", "Completely unedited.", "cut", "none", "minimal-corner", "raw shuffle", "#71717a", [
+    ["1", 1.8, ""],
+    ["2", 1.8, ""],
+    ["3", 1.8, ""],
+    ["4", 1.8, ""],
+    ["5", 2.4, "zero edits"],
+  ]),
+  tpl("dump-onething", "A Week, One Photo a Day", "dump", "Seven days, seven photos.", "slide", "film", "counter", "weekly rhythm", "#0891b2", [
+    ["Mon", 1.6, "mon"],
+    ["Tue", 1.6, "tue"],
+    ["Wed", 1.6, "wed"],
+    ["Thu", 1.6, "thu"],
+    ["Fri", 1.6, "fri"],
+    ["Weekend", 2.4, "sat & sun"],
+  ]),
+
+  // ─── Pets (more) ─────────────────────────────────────────────────────
+  tpl("pet-cat-day", "A Day With My Cat", "pets", "Sleep, eat, judge, repeat.", "cut", "warm", "subtitle", "chill cat groove", "#f59e0b", [
+    ["Wake up", 2, "wakes me up at 6"],
+    ["Breakfast", 2, ""],
+    ["Nap 1", 1.8, "nap #1"],
+    ["Nap 2", 1.8, "nap #7"],
+    ["Evening zoomies", 2.4, "now she wants to play"],
+  ]),
+  tpl("pet-training", "Training Progress", "pets", "Command by command.", "cut", "vivid", "counter", "encouraging beat", "#22c55e", [
+    ["Sit", 2, "sit — got it"],
+    ["Stay", 2, "stay — working on it"],
+    ["Shake", 2, "shake — nailed it"],
+    ["Proud", 2.6, "good boy"],
+  ]),
+  tpl("pet-newpet", "Bringing Home a New Pet", "pets", "The first day home.", "fade", "warm", "handwritten", "gentle welcome strings", "#fbbf24", [
+    ["The car ride", 2.4, "bringing him home"],
+    ["First steps inside", 2.2, ""],
+    ["Getting comfortable", 2.4, ""],
+    ["Settled in", 3, "welcome home 🐾"],
+  ]),
+  tpl("pet-vet", "Vet Visit", "pets", "Brave face, mostly.", "cut", "cool", "subtitle", "nervous-to-relieved beat", "#0ea5e9", [
+    ["The carrier", 2, "not happy about this"],
+    ["Waiting room", 2, ""],
+    ["Checkup", 2.2, ""],
+    ["All good", 2.8, "healthy and dramatic"],
+  ]),
+  tpl("pet-bird", "Bird's Day", "pets", "Chirps, seeds, chaos.", "whip", "vivid", "sticker", "chirpy playful loop", "#eab308", [
+    ["Morning chirp", 1.8, ""],
+    ["Breakfast", 1.8, ""],
+    ["Out of the cage", 2, "chaos begins"],
+    ["Exhausted", 2.4, "us, not him"],
+  ]),
+  tpl("pet-siblings", "Pet Siblings", "pets", "Chaos, but they love each other.", "cut", "warm", "sticker", "playful duo beat", "#fb923c", [
+    ["Pet 1", 2, ""],
+    ["Pet 2", 2, ""],
+    ["Together", 2.4, "best friends"],
+    ["Chaos", 2.6, "most days anyway"],
+  ]),
+
+  // ─── Celebrations (more) ─────────────────────────────────────────────
+  tpl("cel-babyshower", "Baby Shower", "celebration", "Soft, joyful, awaited.", "fade", "dreamy", "handwritten", "gentle celebration strings", "#fda4af", [
+    ["Decorations", 2.2, "getting ready"],
+    ["Guests", 2.2, ""],
+    ["Games", 2.2, ""],
+    ["Reveal", 3.2, "can't wait to meet you"],
+  ]),
+  tpl("cel-retirement", "Retirement Party", "celebration", "Decades of work, celebrated.", "fade", "golden", "bold-center", "triumphant warmth", "#eab308", [
+    ["The office", 2.2, "last day"],
+    ["Colleagues", 2.2, ""],
+    ["Cake", 2.4, ""],
+    ["Toast", 3, "40 years, well earned"],
+  ]),
+  tpl("cel-housewarming", "Housewarming", "celebration", "New keys, new chapter.", "fade", "warm", "bold-center", "cosy celebration beat", "#f97316", [
+    ["The keys", 2.2, "our first place"],
+    ["Empty rooms", 2.2, ""],
+    ["Guests arriving", 2.2, ""],
+    ["Home", 3, "welcome home to us"],
+  ]),
+  tpl("cel-engagement", "Engagement", "celebration", "The moment, and after.", "flash", "golden", "bold-center", "romantic swell", "#f43f5e", [
+    ["Before", 2, "no idea what was coming"],
+    ["The moment", 3, "she said yes"],
+    ["The ring", 2.4, ""],
+    ["Celebration", 3, "engaged 💍"],
+  ]),
+  tpl("cel-quinceanera", "Quinceañera", "celebration", "A milestone celebration.", "fade", "golden", "bold-center", "festive waltz", "#ec4899", [
+    ["Getting ready", 2.4, "the big day"],
+    ["The dress", 2.6, ""],
+    ["The party", 2.6, ""],
+    ["Dance", 3.2, "quince 🎉"],
+  ]),
+  tpl("cel-gamewin", "Championship Win", "celebration", "The moment it's won.", "flash", "vivid", "bold-center", "victory anthem", "#dc2626", [
+    ["The game", 2.2, "final seconds"],
+    ["The play", 2.4, ""],
+    ["The win", 3, "CHAMPIONS"],
+    ["Celebration", 3, ""],
+  ]),
+
+  // ─── Study & work (more) ─────────────────────────────────────────────
+  tpl("work-internship", "Internship Diary", "work", "First taste of the job.", "cut", "cool", "subtitle", "corporate lo-fi", "#0ea5e9", [
+    ["Day 1", 2.2, "first day nerves"],
+    ["Week 2", 2, "getting the hang of it"],
+    ["Final week", 2.2, "actually good at this now"],
+    ["Last day", 2.8, "already miss it"],
+  ]),
+  tpl("work-thesis", "Thesis Grind", "work", "Months of one document.", "cut", "moody", "counter", "tense determination", "#4c1d95", [
+    ["Outline", 2.2, "week 1"],
+    ["Writing", 2.2, "week 6"],
+    ["Rewriting", 2.2, "week 12"],
+    ["Submitted", 3, "SUBMITTED"],
+  ]),
+  tpl("work-sidehustle", "Side Hustle Diary", "work", "9-to-5, then the real work.", "slide", "vivid", "subtitle", "hustle beat", "#f59e0b", [
+    ["Day job", 2.2, "9-5 done"],
+    ["Side hustle starts", 2.2, "now the real work"],
+    ["Late night", 2.4, "midnight, still going"],
+    ["First sale", 3, "first sale ever 🎉"],
+  ]),
+  tpl("work-conference", "Conference Day", "work", "Talks, notes, networking.", "cut", "cool", "subtitle", "professional buzz", "#0891b2", [
+    ["Badge on", 2, "conference day"],
+    ["Sessions", 2.2, ""],
+    ["Networking", 2.2, ""],
+    ["Notes", 2.6, "so many ideas"],
+  ]),
+  tpl("work-promotion", "Got the Promotion", "work", "The news and the reaction.", "flash", "golden", "bold-center", "victory sting", "#eab308", [
+    ["Before the call", 2.2, "so nervous"],
+    ["The news", 2.6, "wait, really?"],
+    ["Celebration", 3, "PROMOTED 🎉"],
+  ]),
+
+  // ─── Sports ──────────────────────────────────────────────────────────
+  tpl("sports-gameday", "Game Day", "sports", "Warm up to final whistle.", "cut", "vivid", "bold-center", "stadium hype", "#dc2626", [
+    ["Warm up", 2.2, "game day"],
+    ["First half", 2.2, ""],
+    ["The play", 2.4, "that moment"],
+    ["Final whistle", 3, "GG"],
+  ]),
+  tpl("sports-training", "Training Camp", "sports", "The unseen work.", "cut", "moody", "counter", "grind soundtrack", "#78716c", [
+    ["Early morning", 2.2, "5am training"],
+    ["Drills", 2.2, ""],
+    ["Conditioning", 2.2, ""],
+    ["Exhausted", 2.6, "worth it on game day"],
+  ]),
+  tpl("sports-race", "Race Day", "sports", "Start line to finish line.", "slide", "vivid", "counter", "adrenaline pulse", "#0ea5e9", [
+    ["Start line", 2.2, "nervous energy"],
+    ["Mid race", 2.2, ""],
+    ["The push", 2.4, "final stretch"],
+    ["Finish", 3, "new personal best"],
+  ]),
+  tpl("sports-tournament", "Tournament Run", "sports", "Round by round.", "flash", "vivid", "bold-center", "competitive drive", "#7c3aed", [
+    ["Round 1", 1.8, "round 1 — win"],
+    ["Round 2", 1.8, "round 2 — win"],
+    ["Final", 2.4, "the final"],
+    ["Champion", 3, "champions 🏆"],
+  ]),
+  tpl("sports-skateboarding", "Skate Session", "sports", "Falls and landings.", "whip", "vivid", "counter", "punk skate beat", "#f97316", [
+    ["Warm up", 1.8, ""],
+    ["The falls", 2, "took a few tries"],
+    ["Landing it", 2.6, "landed it!"],
+  ]),
+  tpl("sports-surfing", "Surf Session", "sports", "Paddle out, catch the wave.", "zoom", "cool", "subtitle", "ocean rhythm", "#0891b2", [
+    ["Paddling out", 2.2, ""],
+    ["Waiting", 2, "waiting for the set"],
+    ["The wave", 3, "caught it"],
+  ]),
+  tpl("sports-golf", "Round of Golf", "sports", "18 holes, condensed.", "fade", "vivid", "subtitle", "relaxed fairway groove", "#16a34a", [
+    ["Tee off", 2.2, "front nine"],
+    ["Mid round", 2.2, ""],
+    ["The shot", 2.4, "best shot of the day"],
+    ["18th hole", 2.8, ""],
+  ]),
+  tpl("sports-marathon", "Marathon Day", "sports", "26.2 miles.", "slide", "vivid", "counter", "endurance build", "#dc2626", [
+    ["Start", 2, "mile 0"],
+    ["Mile 13", 2.2, "halfway"],
+    ["Mile 20", 2.2, "the wall"],
+    ["Finish line", 3.4, "26.2 done"],
+  ]),
+
+  // ─── Gaming ──────────────────────────────────────────────────────────
+  tpl("gaming-setup", "Gaming Setup Tour", "gaming", "The battlestation.", "slide", "moody", "subtitle", "synth tech beat", "#7c3aed", [
+    ["Wide shot", 2.4, "setup 2025"],
+    ["Monitor", 2, ""],
+    ["Peripherals", 2, ""],
+    ["RGB on", 2.8, "lit up"],
+  ]),
+  tpl("gaming-clutch", "Clutch Moment", "gaming", "The 1v3 nobody expected.", "flash", "vivid", "bold-center", "clutch hype sting", "#dc2626", [
+    ["The situation", 2, "1v3, no way"],
+    ["The clutch", 2.6, "somehow"],
+    ["Victory", 3, "CLUTCHED"],
+  ]),
+  tpl("gaming-newgame", "New Game First Impressions", "gaming", "Day one thoughts.", "cut", "vivid", "subtitle", "excited synth loop", "#a855f7", [
+    ["Install", 2, "finally out"],
+    ["First hour", 2.2, ""],
+    ["Verdict", 2.8, "10/10 so far"],
+  ]),
+  tpl("gaming-tournament", "Tournament Grind", "gaming", "Bracket to finals.", "flash", "moody", "bold-center", "esports hype", "#7c3aed", [
+    ["Bracket start", 2, "round 1"],
+    ["Quarters", 1.8, ""],
+    ["Semis", 1.8, ""],
+    ["Finals", 2.6, "grand finals"],
+  ]),
+  tpl("gaming-speedrun", "Speedrun Attempt", "gaming", "Chasing a personal best.", "whip", "vivid", "counter", "fast electronic loop", "#22c55e", [
+    ["Attempt start", 1.8, "go"],
+    ["Mid run", 1.8, "on pace"],
+    ["Final split", 2, "new PB?"],
+    ["New PB", 2.8, "NEW PERSONAL BEST"],
+  ]),
+  tpl("gaming-streaming", "First Stream", "gaming", "Nervous but live.", "cut", "moody", "subtitle", "lo-fi stream vibes", "#6366f1", [
+    ["Going live", 2.2, "first stream, be nice"],
+    ["Mid stream", 2.2, ""],
+    ["Ending", 2.6, "thanks for watching"],
+  ]),
+
+  // ─── Art & design ────────────────────────────────────────────────────
+  tpl("art-process", "Art Process", "art", "Blank page to finished piece.", "fade", "film", "minimal-corner", "focused studio ambient", "#7c3aed", [
+    ["Blank page", 2.4, "starting fresh"],
+    ["Sketch", 2.2, ""],
+    ["Colour", 2.2, ""],
+    ["Detail", 2.2, ""],
+    ["Finished", 3, "done."],
+  ]),
+  tpl("art-timelapse", "Painting Timelapse", "art", "Hours condensed to seconds.", "cut", "vivid", "minimal-corner", "quick paint beat", "#ec4899", [
+    ["Blank canvas", 1.8, ""],
+    ["Base layer", 1.8, ""],
+    ["Building up", 1.8, ""],
+    ["Details", 1.8, ""],
+    ["Finished piece", 2.8, "6 hours in 10 seconds"],
+  ]),
+  tpl("art-sketchbook", "Sketchbook Tour", "art", "Pages of practice.", "slide", "film", "handwritten", "gentle pencil scratch beat", "#a16207", [
+    ["Page 1", 1.8, ""],
+    ["Page 2", 1.8, ""],
+    ["Page 3", 1.8, ""],
+    ["Favourite page", 2.6, "this one's my favourite"],
+  ]),
+  tpl("art-digital", "Digital Art Process", "art", "Layers building up.", "fade", "vivid", "minimal-corner", "digital ambient", "#6366f1", [
+    ["Line art", 2.2, ""],
+    ["Base colours", 2.2, ""],
+    ["Shading", 2.2, ""],
+    ["Final render", 3, "final"],
+  ]),
+  tpl("art-pottery", "Pottery Session", "art", "Clay to finished piece.", "fade", "warm", "minimal-corner", "wheel spin ambient", "#b45309", [
+    ["Wedging clay", 2.2, ""],
+    ["On the wheel", 2.4, ""],
+    ["Shaping", 2.4, ""],
+    ["Finished piece", 3, "off the wheel"],
+  ]),
+  tpl("art-mural", "Mural Progress", "art", "Wall to masterpiece.", "zoom", "vivid", "counter", "big scale build", "#f97316", [
+    ["Blank wall", 2.4, "day 1"],
+    ["Outline", 2.2, "day 2"],
+    ["Colour", 2.2, "day 4"],
+    ["Finished", 3.2, "day 7 — done"],
+  ]),
+  tpl("art-craft", "Craft Project", "art", "DIY, start to finish.", "cut", "warm", "subtitle", "crafty tinker beat", "#f59e0b", [
+    ["Materials", 2.2, "let's make something"],
+    ["Building", 2.4, ""],
+    ["Almost there", 2.2, ""],
+    ["Finished", 3, "made this!"],
+  ]),
+
+  // ─── Cars ────────────────────────────────────────────────────────────
+  tpl("cars-newcar", "New Car Day", "cars", "Keys handed over.", "flash", "vivid", "bold-center", "triumphant reveal", "#dc2626", [
+    ["The lot", 2.2, "picking it up today"],
+    ["The keys", 2.4, ""],
+    ["First drive", 3, "new car who dis"],
+  ]),
+  tpl("cars-detail", "Car Detailing", "cars", "Deep clean, inside and out.", "cut", "vivid", "counter", "satisfying clean beat", "#0ea5e9", [
+    ["Before", 2.4, "before"],
+    ["Washing", 2.2, ""],
+    ["Interior", 2.2, ""],
+    ["After", 3, "showroom ready"],
+  ]),
+  tpl("cars-roadtrip", "Road Trip Car Diary", "cars", "Miles and playlists.", "slide", "film", "handwritten", "highway hum", "#f59e0b", [
+    ["Packed up", 2.2, "road trip loading"],
+    ["Open road", 2.4, ""],
+    ["Pit stop", 2.2, ""],
+    ["Arrived", 3, "made it"],
+  ]),
+  tpl("cars-modding", "Mod Progress", "cars", "Build day by day.", "cut", "moody", "counter", "garage grind beat", "#78716c", [
+    ["Stock", 2.4, "before"],
+    ["Parts arrive", 2.2, ""],
+    ["Install", 2.4, ""],
+    ["Finished build", 3.2, "after"],
+  ]),
+  tpl("cars-showcase", "Car Showcase", "cars", "Every angle, slow and clean.", "zoom", "vivid", "minimal-corner", "showroom ambient", "#0f172a", [
+    ["Front", 2.4, ""],
+    ["Side", 2.4, ""],
+    ["Interior", 2.4, ""],
+    ["Full shot", 3, ""],
+  ]),
+  tpl("cars-meet", "Car Meet", "cars", "The lineup.", "cut", "vivid", "sticker", "meet up energy", "#f97316", [
+    ["Arriving", 2, "car meet"],
+    ["The lineup", 2.4, ""],
+    ["Favourite", 2.4, "this one's insane"],
+    ["Golden hour", 2.8, ""],
+  ]),
+
+  // ─── Seasonal ────────────────────────────────────────────────────────
+  tpl("season-fall", "Fall Aesthetic", "seasonal", "Leaves, sweaters, pumpkin.", "fade", "warm", "handwritten", "autumn acoustic", "#c2410c", [
+    ["Leaves changing", 2.4, "fall is here"],
+    ["Sweater weather", 2.4, ""],
+    ["Pumpkin everything", 2.4, ""],
+    ["Cosy night", 3, ""],
+  ]),
+  tpl("season-spring", "Spring Awakening", "seasonal", "Everything blooming again.", "fade", "vivid", "handwritten", "fresh spring strings", "#84cc16", [
+    ["First bloom", 2.4, "spring's here"],
+    ["Green everywhere", 2.4, ""],
+    ["Sunshine", 2.6, ""],
+    ["New season", 2.8, ""],
+  ]),
+  tpl("season-firstsnow", "First Snow", "seasonal", "The year's first snowfall.", "fade", "cool", "handwritten", "winter chimes", "#e0f2fe", [
+    ["Waking up to it", 2.6, "it snowed!"],
+    ["Outside", 2.4, ""],
+    ["Snowball fight", 2.4, ""],
+    ["Warming up inside", 2.8, ""],
+  ]),
+  tpl("season-halloween", "Halloween Prep", "seasonal", "Costume to candy.", "flash", "moody", "bold-center", "spooky fun beat", "#ea580c", [
+    ["Costume on", 2.2, "halloween ready"],
+    ["Decorations", 2.2, ""],
+    ["Trick or treating", 2.4, ""],
+    ["Candy haul", 2.8, "the haul"],
+  ]),
+  tpl("season-christmas", "Christmas Morning", "seasonal", "Lights, gifts, family.", "fade", "golden", "bold-center", "festive orchestral", "#dc2626", [
+    ["Tree lit up", 2.4, "christmas morning"],
+    ["Opening gifts", 2.6, ""],
+    ["Family breakfast", 2.4, ""],
+    ["The day", 2.8, "merry christmas 🎄"],
+  ]),
+  tpl("season-newyearseve", "New Year's Eve", "seasonal", "Countdown to midnight.", "flash", "vivid", "counter", "countdown build", "#7c3aed", [
+    ["Getting ready", 2.2, "nye prep"],
+    ["Party", 2.2, ""],
+    ["Countdown", 2, "10...9...8..."],
+    ["Midnight", 3.2, "happy new year!"],
+  ]),
+  tpl("season-summer-solstice", "Longest Day of Summer", "seasonal", "Sun up early, down late.", "fade", "golden", "minimal-corner", "sunny drift", "#fbbf24", [
+    ["Sunrise", 2.6, ""],
+    ["Midday", 2.4, ""],
+    ["Golden hour", 2.6, ""],
+    ["Sunset", 3, "longest day, best day"],
+  ]),
+  tpl("season-valentines", "Valentine's Day", "seasonal", "Love, sweet and simple.", "fade", "golden", "handwritten", "sweet romance strings", "#f43f5e", [
+    ["Morning surprise", 2.4, "happy valentine's"],
+    ["The date", 2.6, ""],
+    ["Dinner", 2.4, ""],
+    ["Together", 3, "lucky to have you"],
+  ]),
+  tpl("season-easter", "Easter Morning", "seasonal", "Egg hunts and pastels.", "fade", "warm", "sticker", "cheerful spring pop", "#fde68a", [
+    ["Decorating eggs", 2.4, ""],
+    ["The hunt", 2.4, "egg hunt time"],
+    ["Family lunch", 2.4, ""],
+    ["Full basket", 2.8, "found them all"],
+  ]),
+  tpl("season-backtoschool", "Back to School", "seasonal", "New year, new supplies.", "cut", "vivid", "sticker", "fresh start bounce", "#3b82f6", [
+    ["Supplies haul", 2.2, "school supplies"],
+    ["Outfit", 2.2, "first day fit"],
+    ["Locker", 2, ""],
+    ["First day done", 2.8, "survived day 1"],
   ]),
 ];
 

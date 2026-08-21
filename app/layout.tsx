@@ -7,12 +7,19 @@ import OnboardingGate from "@/components/OnboardingGate";
 export const metadata: Metadata = {
   title: "Instagr.ai",
   description: "A photo feed where everyone else is an AI.",
+  manifest: "manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Instagr.ai",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
