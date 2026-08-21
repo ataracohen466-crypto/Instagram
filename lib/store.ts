@@ -25,6 +25,7 @@ interface AppState {
   addReelComment: (reelId: string, comment: Comment) => void;
   addReel: (reel: Reel) => void;
   deleteReel: (reelId: string) => void;
+  setReelVideo: (reelId: string, mediaId: string, duration: number) => void;
   appendChat: (personaId: string, message: ChatMessage) => void;
   markHydrated: () => void;
 }
@@ -145,6 +146,15 @@ export const useApp = create<AppState>()(
 
       deleteReel: (reelId) =>
         set((state) => ({ reels: state.reels.filter((r) => r.id !== reelId) })),
+
+      setReelVideo: (reelId, mediaId, duration) =>
+        set((state) => ({
+          reels: state.reels.map((r) =>
+            r.id === reelId
+              ? { ...r, videoMediaId: mediaId, durationSeconds: duration }
+              : r
+          ),
+        })),
 
       appendChat: (personaId, message) =>
         set((state) => ({

@@ -17,7 +17,8 @@ import { Comment } from "@/lib/types";
 import { useApp, MY_ID, uid } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
 import { generateComments } from "@/lib/aiClient";
-import { getMediaUrl } from "@/lib/media";
+import { getMediaUrl, putMedia } from "@/lib/media";
+import { renderReel } from "@/lib/render";
 import { FILTERS } from "@/lib/reelTemplates";
 import ReelMedia from "./ReelMedia";
 
@@ -55,6 +56,7 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const toggleReelLike = useApp((s) => s.toggleReelLike);
   const addReelComment = useApp((s) => s.addReelComment);
   const deleteReel = useApp((s) => s.deleteReel);
+  const setReelVideo = useApp((s) => s.setReelVideo);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const personaVideo = useRef<HTMLVideoElement>(null);
@@ -69,6 +71,9 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const [replying, setReplying] = useState(false);
   const [renderedUrl, setRenderedUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [combining, setCombining] = useState(false);
+  const [combinePct, setCombinePct] = useState(0);
+  const [combineError, setCombineError] = useState<string | null>(null);
 
   const liked = reel.likedBy.includes(MY_ID);
   const likeCount = reel.likedBy.length;
@@ -145,6 +150,33 @@ export default function ReelCard({ reel }: { reel: Reel }) {
     el.addEventListener("timeupdate", onTime);
     return () => el.removeEventListener("timeupdate", onTime);
   }, [active, reel.videoSrc, renderedUrl]);
+
+  const needsCombining = Boolean(
+    reel.isMine && !reel.videoMediaId && reel.frames?.some((f) => f.mediaId || f.imageUrl)
+  );
+
+  async function combine() {
+    if (!reel.frames || combining) return;
+    setCombining(true);
+    setCombineError(null);
+    try {
+      const { blob, duration } = await renderReel({
+        frames: reel.frames,
+        filter: reel.filter ?? "none",
+        transition: reel.transition ?? "fade",
+        textStyle: reel.textStyle ?? "minimal-corner",
+        onProgress: setCombinePct,
+      });
+      const record = await putMedia(blob, "video");
+      setReelVideo(reel.id, record.id, duration);
+    } catch (err) {
+      setCombineError(
+        err instanceof Error ? err.message : "Couldn't combine the clips."
+      );
+    } finally {
+      setCombining(false);
+    }
+  }
 
   function like() {
     if (!liked) toggleReelLike(reel.id);
@@ -380,6 +412,22 @@ export default function ReelCard({ reel }: { reel: Reel }) {
           <p className="mt-1 text-[11px] text-white/70">
             Template · {reel.templateName}
           </p>
+        )}
+
+        {/* Reels made before the single-video export, or where it failed. */}
+        {needsCombining && (
+          <button
+            onClick={combine}
+            disabled={combining}
+            className="pointer-events-auto mt-2 rounded-full bg-white/20 px-3 py-1.5 text-[12px] font-semibold text-white backdrop-blur disabled:opacity-60"
+          >
+            {combining
+              ? `Combining… ${Math.round(combinePct * 100)}%`
+              : "Combine into one video"}
+          </button>
+        )}
+        {combineError && (
+          <p className="mt-1.5 text-[11px] text-white/80">{combineError}</p>
         )}
         <p className="mt-2 text-[13px] leading-[17px]">{reel.caption}</p>
         <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-white/90">

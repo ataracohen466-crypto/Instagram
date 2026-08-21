@@ -202,7 +202,7 @@ interface LoadedClip {
   frame: ReelFrame;
   video?: HTMLVideoElement;
   image?: HTMLImageElement;
-  routed?: boolean;
+  url?: string;
 }
 
 async function loadClip(frame: ReelFrame): Promise<LoadedClip> {
@@ -226,7 +226,7 @@ async function loadClip(frame: ReelFrame): Promise<LoadedClip> {
       }),
       8000
     );
-    return { frame, video };
+    return { frame, video, url };
   }
 
   const image = new Image();
@@ -238,7 +238,7 @@ async function loadClip(frame: ReelFrame): Promise<LoadedClip> {
     }),
     8000
   );
-  return { frame, image };
+  return { frame, image, url };
 }
 
 export interface RenderOptions {
@@ -287,23 +287,38 @@ export async function renderReel({
   const audioCtx = AudioCtor ? new AudioCtor() : null;
   const audioDest = audioCtx?.createMediaStreamDestination() ?? null;
 
-  // Routing a media element through WebAudio can fail (or mute it) depending
-  // on the browser, so treat captured audio as best-effort and never fatal.
+  /**
+   * Audio is decoded up front and scheduled on the AudioContext timeline
+   * rather than routed from the <video> elements. Element routing forces the
+   * clips to play unmuted, which iOS blocks outside a user gesture — this
+   * way every clip can stay muted (always autoplayable) and the sound still
+   * lands in the export at the right moment.
+   */
+  const schedule: { buffer: AudioBuffer; at: number; length: number }[] = [];
   if (audioCtx && audioDest) {
+    let offset = 0;
     for (const clip of clips) {
-      if (!clip.video) continue;
-      try {
-        const source = audioCtx.createMediaElementSource(clip.video);
-        source.connect(audioDest);
-        clip.routed = true;
-      } catch {
-        /* clip keeps its own output; the export just won't carry its audio */
+      const seconds = clip.frame.seconds;
+      if (clip.video && clip.url) {
+        try {
+          const bytes = await (await fetch(clip.url)).arrayBuffer();
+          const buffer = await audioCtx.decodeAudioData(bytes);
+          schedule.push({ buffer, at: offset, length: seconds });
+        } catch {
+          /* silent clip — image, or a video with no decodable audio track */
+        }
       }
+      offset += seconds;
     }
   }
 
   const stream = canvas.captureStream(30);
-  audioDest?.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
+  // Only attach audio when a clip actually has some: an always-silent track
+  // can stall the encoder and yield an empty file.
+  if (schedule.length > 0 && audioDest) {
+    if (audioCtx?.state === "suspended") await audioCtx.resume();
+    audioDest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
+  }
 
   const recorder = new MediaRecorder(stream, {
     mimeType: mime,
@@ -319,7 +334,17 @@ export async function renderReel({
   });
 
   recorder.start(200);
-  if (audioCtx?.state === "suspended") await audioCtx.resume();
+
+  if (schedule.length > 0 && audioCtx && audioDest) {
+    const t0 = audioCtx.currentTime + 0.05;
+    for (const item of schedule) {
+      const node = audioCtx.createBufferSource();
+      node.buffer = item.buffer;
+      node.connect(audioDest);
+      // Trim to the slot length so audio can't run past its clip.
+      node.start(t0 + item.at, 0, Math.min(item.length, item.buffer.duration));
+    }
+  }
 
   const startedAt = performance.now();
 
@@ -383,7 +408,7 @@ function playClip(
     if (clip.video) {
       clip.video.currentTime = 0;
       clip.video.loop = true;
-      clip.video.muted = !clip.routed;
+      clip.video.muted = true;
       clip.video.play().catch(() => {});
     }
 
