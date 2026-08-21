@@ -1,7 +1,8 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
+import { readVault, writeVault } from "./vault";
 import { ChatMessage, Comment, Post, Profile } from "./types";
 import { buildSeedFeed, uid } from "./seed";
 import type { Reel } from "./reels";
@@ -28,6 +29,45 @@ interface AppState {
 }
 
 const ME = "__me__";
+
+/**
+ * The vault key only exists after a successful login, so the store starts
+ * with no storage bound. `bindVault` attaches it and replays the account's
+ * saved state; `unbindVault` drops it on logout.
+ */
+let vaultUser: string | null = null;
+let vaultKey: CryptoKey | null = null;
+
+const encryptedStorage: StateStorage = {
+  getItem: async (): Promise<string | null> => {
+    if (!vaultUser || !vaultKey) return null;
+    return readVault(vaultUser, vaultKey);
+  },
+  setItem: async (_name, value): Promise<void> => {
+    if (!vaultUser || !vaultKey) return;
+    await writeVault(vaultUser, vaultKey, value);
+  },
+  removeItem: async (): Promise<void> => {
+    /* Accounts are removed via deleteAccount, not by clearing state. */
+  },
+};
+
+export async function bindVault(
+  username: string,
+  key: CryptoKey
+): Promise<void> {
+  vaultUser = username;
+  vaultKey = key;
+  await useApp.persist.rehydrate();
+  // A brand-new account has no vault yet, so onRehydrateStorage may not fire.
+  useApp.setState({ hydrated: true });
+}
+
+export function unbindVault(): void {
+  vaultUser = null;
+  vaultKey = null;
+  useApp.setState({ profile: null, posts: [], reels: [], chats: {} });
+}
 
 export const useApp = create<AppState>()(
   persist(
@@ -110,8 +150,10 @@ export const useApp = create<AppState>()(
         })),
     }),
     {
-      name: "instaai-store-v1",
-      storage: createJSONStorage(() => localStorage),
+      name: "instaai-vault",
+      storage: createJSONStorage(() => encryptedStorage),
+      // Nothing loads until a password unlocks the vault.
+      skipHydration: true,
       partialize: (state) => ({
         profile: state.profile,
         posts: state.posts,

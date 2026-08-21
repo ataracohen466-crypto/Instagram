@@ -5,15 +5,22 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Grid3x3, Bookmark, UserSquare, Settings } from "lucide-react";
 import { getPersona } from "@/lib/personas";
-import { useApp } from "@/lib/store";
+import { useApp, unbindVault } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
 import Photo from "@/components/Photo";
 import { getApiKey, setApiKey } from "@/lib/aiClient";
+import { changePassword, clearSession, deleteAccount } from "@/lib/vault";
+import { passwordProblem } from "@/lib/crypto";
 
 function SettingsSheet({ onClose }: { onClose: () => void }) {
-  const resetEverything = useApp((s) => s.resetEverything);
+  const profile = useApp((s) => s.profile);
   const [key, setKey] = useState("");
   const [saved, setSaved] = useState(false);
+
+  const [currentPw, setCurrentPw] = useState("");
+  const [nextPw, setNextPw] = useState("");
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
     setKey(getApiKey());
@@ -23,6 +30,40 @@ function SettingsSheet({ onClose }: { onClose: () => void }) {
     setApiKey(key);
     setSaved(true);
     setTimeout(() => setSaved(false), 1800);
+  }
+
+  async function submitPassword() {
+    if (!profile) return;
+    setPwMsg(null);
+    const problem = passwordProblem(nextPw);
+    if (problem) {
+      setPwMsg(problem);
+      return;
+    }
+    const ok = await changePassword(profile.username, currentPw, nextPw);
+    setPwMsg(ok ? "Password changed ✓" : "Current password is wrong.");
+    if (ok) {
+      setCurrentPw("");
+      setNextPw("");
+    }
+  }
+
+  function logOut() {
+    clearSession();
+    unbindVault();
+    location.reload();
+  }
+
+  async function removeAccount() {
+    if (!profile) return;
+    const typed = prompt(
+      `This permanently deletes @${profile.username} and everything in it. Type the username to confirm.`
+    );
+    if (typed !== profile.username) return;
+    await deleteAccount(profile.username);
+    clearSession();
+    unbindVault();
+    location.reload();
   }
 
   return (
@@ -68,14 +109,56 @@ function SettingsSheet({ onClose }: { onClose: () => void }) {
 
         <div className="mt-5 border-t border-ig-border pt-4">
           <button
-            onClick={() => {
-              if (confirm("Log out and erase this browser's feed?")) {
-                resetEverything();
-              }
-            }}
-            className="w-full rounded-lg bg-[#efefef] py-2 text-sm font-semibold text-ig-red"
+            onClick={() => setShowPw((v) => !v)}
+            className="text-[13px] font-semibold text-ig-blue"
           >
-            Log out and reset
+            {showPw ? "Cancel" : "Change password"}
+          </button>
+
+          {showPw && (
+            <div className="mt-2 space-y-2">
+              <input
+                value={currentPw}
+                onChange={(e) => setCurrentPw(e.target.value)}
+                type="password"
+                autoComplete="current-password"
+                placeholder="Current password"
+                className="w-full rounded-lg border border-ig-border px-3 py-2 text-[13px] outline-none"
+              />
+              <input
+                value={nextPw}
+                onChange={(e) => setNextPw(e.target.value)}
+                type="password"
+                autoComplete="new-password"
+                placeholder="New password"
+                className="w-full rounded-lg border border-ig-border px-3 py-2 text-[13px] outline-none"
+              />
+              <button
+                onClick={submitPassword}
+                className="w-full rounded-lg bg-ig-text py-2 text-sm font-semibold text-white"
+              >
+                Save new password
+              </button>
+            </div>
+          )}
+
+          {pwMsg && (
+            <p className="mt-2 text-[12px] text-ig-muted">{pwMsg}</p>
+          )}
+        </div>
+
+        <div className="mt-4 space-y-2 border-t border-ig-border pt-4">
+          <button
+            onClick={logOut}
+            className="w-full rounded-lg bg-[#efefef] py-2 text-sm font-semibold"
+          >
+            Log out
+          </button>
+          <button
+            onClick={removeAccount}
+            className="w-full rounded-lg py-2 text-sm font-semibold text-ig-red"
+          >
+            Delete account
           </button>
         </div>
 
