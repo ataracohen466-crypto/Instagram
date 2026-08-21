@@ -12,7 +12,8 @@ function TopBarInner() {
   const profile = useApp((s) => s.profile);
 
   const isChat = /^\/messages\/chat\/?$/.test(pathname);
-  if (isChat) return null;
+  const isReels = /^\/reels\/?$/.test(pathname);
+  if (isChat || isReels) return null;
 
   const onProfile = /^\/profile\/?$/.test(pathname);
   const viewingSomeoneElse =

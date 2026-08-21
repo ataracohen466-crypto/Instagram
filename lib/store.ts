@@ -4,11 +4,13 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { ChatMessage, Comment, Post, Profile } from "./types";
 import { buildSeedFeed, uid } from "./seed";
+import { Reel, buildSeedReels } from "./reels";
 
 interface AppState {
   hydrated: boolean;
   profile: Profile | null;
   posts: Post[];
+  reels: Reel[];
   chats: Record<string, ChatMessage[]>;
   setProfile: (profile: Profile) => void;
   resetEverything: () => void;
@@ -16,6 +18,8 @@ interface AppState {
   addComment: (postId: string, comment: Comment) => void;
   addPost: (post: Post) => void;
   deletePost: (postId: string) => void;
+  toggleReelLike: (reelId: string) => void;
+  addReelComment: (reelId: string, comment: Comment) => void;
   appendChat: (personaId: string, message: ChatMessage) => void;
   markHydrated: () => void;
 }
@@ -28,6 +32,7 @@ export const useApp = create<AppState>()(
       hydrated: false,
       profile: null,
       posts: [],
+      reels: [],
       chats: {},
 
       markHydrated: () => set({ hydrated: true }),
@@ -36,9 +41,10 @@ export const useApp = create<AppState>()(
         set((state) => ({
           profile,
           posts: state.posts.length ? state.posts : buildSeedFeed(),
+          reels: state.reels.length ? state.reels : buildSeedReels(),
         })),
 
-      resetEverything: () => set({ profile: null, posts: [], chats: {} }),
+      resetEverything: () => set({ profile: null, posts: [], reels: [], chats: {} }),
 
       toggleLike: (postId) =>
         set((state) => ({
@@ -66,6 +72,27 @@ export const useApp = create<AppState>()(
       deletePost: (postId) =>
         set((state) => ({ posts: state.posts.filter((p) => p.id !== postId) })),
 
+      toggleReelLike: (reelId) =>
+        set((state) => ({
+          reels: state.reels.map((r) =>
+            r.id === reelId
+              ? {
+                  ...r,
+                  likedBy: r.likedBy.includes(ME)
+                    ? r.likedBy.filter((u) => u !== ME)
+                    : [...r.likedBy, ME],
+                }
+              : r
+          ),
+        })),
+
+      addReelComment: (reelId, comment) =>
+        set((state) => ({
+          reels: state.reels.map((r) =>
+            r.id === reelId ? { ...r, comments: [...r.comments, comment] } : r
+          ),
+        })),
+
       appendChat: (personaId, message) =>
         set((state) => ({
           chats: {
@@ -80,9 +107,14 @@ export const useApp = create<AppState>()(
       partialize: (state) => ({
         profile: state.profile,
         posts: state.posts,
+        reels: state.reels,
         chats: state.chats,
       }),
       onRehydrateStorage: () => (state) => {
+        // Backfills reels for browsers that onboarded before Reels existed.
+        if (state && state.profile && state.reels.length === 0) {
+          state.reels = buildSeedReels();
+        }
         state?.markHydrated();
       },
     }

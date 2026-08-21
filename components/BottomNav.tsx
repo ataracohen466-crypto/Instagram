@@ -16,16 +16,26 @@ export default function BottomNav() {
 
   if (/^\/messages(\/.*)?$/.test(pathname)) return null;
 
+  const onReels = /^\/reels$/.test(pathname);
+
   const items = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/explore", icon: Search, label: "Explore" },
     { href: "/create", icon: PlusSquare, label: "Create" },
-    { href: "/activity", icon: Clapperboard, label: "Activity" },
+    { href: "/reels", icon: Clapperboard, label: "Reels" },
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ig-border bg-white">
-      <div className="mx-auto flex h-[50px] w-full max-w-[470px] items-center justify-around px-4">
+    <nav
+      className={`fixed inset-x-0 bottom-0 z-40 ${
+        onReels ? "border-t-0 bg-transparent" : "border-t border-ig-border bg-white"
+      }`}
+    >
+      <div
+        className={`mx-auto flex h-[50px] w-full max-w-[470px] items-center justify-around px-4 ${
+          onReels ? "text-white" : ""
+        }`}
+      >
         {items.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           return (
@@ -46,7 +56,9 @@ export default function BottomNav() {
               src={avatarUrl(profile.avatarSeed)}
               alt=""
               className={`h-6 w-6 rounded-full ${
-                pathname.startsWith("/profile") ? "ring-2 ring-black" : ""
+                pathname.startsWith("/profile")
+                  ? `ring-2 ${onReels ? "ring-white" : "ring-black"}`
+                  : ""
               }`}
             />
           </Link>
