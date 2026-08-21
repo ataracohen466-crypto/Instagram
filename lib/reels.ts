@@ -30,6 +30,13 @@ export interface Reel {
   createdAt: number;
   /** Bundled MP4 for the AI personas' own reels. */
   videoSrc?: string;
+  /**
+   * A template reel is exported to one continuous video at share time; this
+   * is that single clip in the media store. `frames` is kept only as the
+   * recipe it was built from.
+   */
+  videoMediaId?: string;
+  durationSeconds?: number;
   /** Present on reels the user built from a template. */
   frames?: ReelFrame[];
   templateId?: string;

@@ -17,6 +17,7 @@ import { Comment } from "@/lib/types";
 import { useApp, MY_ID, uid } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
 import { generateComments } from "@/lib/aiClient";
+import { getMediaUrl } from "@/lib/media";
 import { FILTERS } from "@/lib/reelTemplates";
 import ReelMedia from "./ReelMedia";
 
@@ -66,6 +67,8 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState("");
   const [replying, setReplying] = useState(false);
+  const [renderedUrl, setRenderedUrl] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
 
   const liked = reel.likedBy.includes(MY_ID);
   const likeCount = reel.likedBy.length;
@@ -93,6 +96,18 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const textClass =
     TEXT_STYLES[reel.textStyle ?? "minimal-corner"] ?? TEXT_STYLES["minimal-corner"];
 
+  // Decrypt the exported reel once, then play it like any other video.
+  useEffect(() => {
+    let cancelled = false;
+    if (!reel.videoMediaId) return;
+    getMediaUrl(reel.videoMediaId).then((url) => {
+      if (!cancelled) setRenderedUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [reel.videoMediaId]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -106,11 +121,11 @@ export default function ReelCard({ reel }: { reel: Reel }) {
 
   // Each frame holds for its own duration, so template pacing is respected.
   useEffect(() => {
-    if (reel.videoSrc || !active || frameCount < 2) return;
+    if (reel.videoMediaId || reel.videoSrc || !active || frameCount < 2) return;
     const hold = (frames[frame % frameCount]?.seconds ?? 4) * 1000;
     const id = setTimeout(() => setFrame((f) => (f + 1) % frameCount), hold);
     return () => clearTimeout(id);
-  }, [active, frame, frameCount, frames, reel.videoSrc]);
+  }, [active, frame, frameCount, frames, reel.videoSrc, reel.videoMediaId]);
 
   // Restart from the top whenever a reel scrolls back into view.
   useEffect(() => {
@@ -123,7 +138,13 @@ export default function ReelCard({ reel }: { reel: Reel }) {
     if (!el) return;
     if (active) el.play().catch(() => {});
     else el.pause();
-  }, [active, reel.videoSrc]);
+
+    const onTime = () => {
+      if (el.duration) setProgress(el.currentTime / el.duration);
+    };
+    el.addEventListener("timeupdate", onTime);
+    return () => el.removeEventListener("timeupdate", onTime);
+  }, [active, reel.videoSrc, renderedUrl]);
 
   function like() {
     if (!liked) toggleReelLike(reel.id);
@@ -180,7 +201,18 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       ref={containerRef}
       className="relative h-[100dvh] w-full shrink-0 snap-start snap-always overflow-hidden bg-black"
     >
-      {reel.videoSrc ? (
+      {reel.videoMediaId ? (
+        // Exported template reels are a single continuous video.
+        <video
+          ref={personaVideo}
+          src={renderedUrl ?? undefined}
+          muted={muted}
+          playsInline
+          loop
+          preload="auto"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : reel.videoSrc ? (
         // The AI personas' reels are real video files.
         <video
           ref={personaVideo}
@@ -217,8 +249,8 @@ export default function ReelCard({ reel }: { reel: Reel }) {
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
 
-      {/* Overlay text for the current frame */}
-      {current?.text && (
+      {/* Overlay text per clip. Exported reels already have it burned in. */}
+      {!reel.videoMediaId && current?.text && (
         <div
           key={`text-${frame}`}
           className={`pointer-events-none absolute z-[5] text-white reel-tr-fade ${textClass}`}
@@ -234,7 +266,16 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       )}
 
       {/* Progress segments, one per frame */}
-      {!reel.videoSrc && frameCount > 1 && (
+      {(reel.videoMediaId || reel.videoSrc) && (
+        <div className="pointer-events-none absolute inset-x-3 top-[52px] z-10 h-[2px] rounded-full bg-white/35">
+          <span
+            className="block h-full rounded-full bg-white"
+            style={{ width: `${Math.round(progress * 100)}%` }}
+          />
+        </div>
+      )}
+
+      {!reel.videoMediaId && !reel.videoSrc && frameCount > 1 && (
         <div className="pointer-events-none absolute inset-x-3 top-[52px] z-10 flex gap-1">
           {frames.map((_, i) => (
             <span

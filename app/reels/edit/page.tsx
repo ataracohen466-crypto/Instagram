@@ -25,6 +25,7 @@ import { useApp, uid } from "@/lib/store";
 import { photoUrl } from "@/lib/seed";
 import { downscale } from "@/lib/image";
 import { putMedia } from "@/lib/media";
+import { renderReel, renderSupported } from "@/lib/render";
 import ReelMedia from "@/components/ReelMedia";
 import { generateCaption } from "@/lib/aiClient";
 import Photo from "@/components/Photo";
@@ -95,6 +96,7 @@ function Editor() {
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [busySlot, setBusySlot] = useState<number | null>(null);
+  const [exportPct, setExportPct] = useState(0);
 
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
@@ -209,11 +211,15 @@ function Editor() {
     }
   }
 
-  function share() {
+  async function share() {
     if (!profile || sharing) return;
     setSharing(true);
+    setError(null);
+    setPlaying(false);
 
-    addReel({
+    const used = frames.filter((f) => f.mediaId || f.imageUrl);
+
+    const base = {
       id: uid("r"),
       authorUsername: profile.username,
       authorAvatarSeed: profile.avatarSeed,
@@ -230,7 +236,28 @@ function Editor() {
       filter,
       textStyle: template!.textStyle,
       isMine: true,
-    });
+    };
+
+    try {
+      // Flatten the clips into one continuous video.
+      const { blob, duration } = await renderReel({
+        frames: used,
+        filter,
+        transition,
+        textStyle: template!.textStyle,
+        onProgress: setExportPct,
+      });
+
+      const record = await putMedia(blob, "video");
+      addReel({ ...base, videoMediaId: record.id, durationSeconds: duration });
+    } catch (err) {
+      // Without a working encoder the reel still posts, just clip by clip.
+      console.error("Reel export failed", err);
+      addReel(base);
+      setError(
+        "Couldn't combine the clips into one video on this browser — posted as separate clips instead."
+      );
+    }
 
     router.push("/reels");
   }
@@ -258,7 +285,7 @@ function Editor() {
             disabled={filled === 0 || sharing}
             className="rounded-lg bg-ig-blue px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-40"
           >
-            Share
+            {sharing ? `${Math.round(exportPct * 100)}%` : "Share"}
           </button>
         </div>
       </header>
