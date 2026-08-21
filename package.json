@@ -1,5 +1,5 @@
 {
-  "name": "instaai",
+  "name": "tutorai",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,6 +11,7 @@
     "@anthropic-ai/sdk": "^0.120.0",
     "lucide-react": "^0.554.0",
     "next": "^16.3.1",
+    "pdfjs-dist": "^4.10.38",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zustand": "^5.0.8"
@@ -23,5 +24,6 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
     "typescript": "^5.9.3"
-  }
+  },
+  "description": "An AI tutor, note summariser, quiz and practice-test generator, and adaptive study planner."
 }

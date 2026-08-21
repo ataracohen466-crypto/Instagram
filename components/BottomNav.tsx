@@ -2,68 +2,51 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, PlusSquare, Clapperboard } from "lucide-react";
-import { useApp } from "@/lib/store";
-import { avatarUrl } from "@/lib/seed";
+import {
+  BarChart3,
+  ClipboardList,
+  Dumbbell,
+  GraduationCap,
+  Home,
+  NotebookPen,
+} from "lucide-react";
+import { cx } from "@/lib/utils";
+
+const TABS = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/learn", label: "Learn", icon: GraduationCap },
+  { href: "/notes", label: "Notes", icon: NotebookPen },
+  { href: "/practice", label: "Practice", icon: Dumbbell },
+  { href: "/tests", label: "Tests", icon: ClipboardList },
+  { href: "/progress", label: "Progress", icon: BarChart3 },
+];
 
 export default function BottomNav() {
-  const rawPath = usePathname();
-  const profile = useApp((s) => s.profile);
-
-  // Static export uses trailing slashes; normalise so route checks still match.
-  const pathname =
-    rawPath.length > 1 ? rawPath.replace(/\/$/, "") : rawPath;
-
-  if (/^\/messages(\/.*)?$/.test(pathname)) return null;
-
-  const onReels = /^\/reels$/.test(pathname);
-
-  const items = [
-    { href: "/", icon: Home, label: "Home" },
-    { href: "/explore", icon: Search, label: "Explore" },
-    { href: "/create", icon: PlusSquare, label: "Create" },
-    { href: "/reels", icon: Clapperboard, label: "Reels" },
-  ];
+  const pathname = usePathname();
 
   return (
-    <nav
-      className={`fixed inset-x-0 bottom-0 z-40 ${
-        onReels ? "border-t-0 bg-transparent" : "border-t border-ig-border bg-white"
-      }`}
-    >
-      <div
-        className={`mx-auto flex h-[50px] w-full max-w-[470px] items-center justify-around px-4 ${
-          onReels ? "text-white" : ""
-        }`}
-      >
-        {items.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href;
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-surface-line bg-white/95 backdrop-blur">
+      <div className="mx-auto grid max-w-3xl grid-cols-6">
+        {TABS.map(({ href, label, icon: Icon }) => {
+          const active =
+            href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
-            <Link key={href} href={href} aria-label={label}>
-              <Icon
-                size={25}
-                strokeWidth={active ? 2.5 : 1.8}
-                fill={active ? "currentColor" : "none"}
-              />
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={cx(
+                "flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wide transition",
+                active ? "text-brand-600" : "text-ink-faint hover:text-ink-muted"
+              )}
+            >
+              <Icon size={20} strokeWidth={active ? 2.4 : 1.9} />
+              {label}
             </Link>
           );
         })}
-
-        {profile && (
-          <Link href={`/profile?u=${encodeURIComponent(profile.username)}`} aria-label="Profile">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={avatarUrl(profile.avatarSeed)}
-              alt=""
-              className={`h-6 w-6 rounded-full ${
-                pathname.startsWith("/profile")
-                  ? `ring-2 ${onReels ? "ring-white" : "ring-black"}`
-                  : ""
-              }`}
-            />
-          </Link>
-        )}
       </div>
+      <div className="h-[env(safe-area-inset-bottom)]" />
     </nav>
   );
 }
