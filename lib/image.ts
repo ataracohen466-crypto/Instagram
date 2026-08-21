@@ -6,7 +6,7 @@
  *
  * `aspect` is width / height: 1 for square feed photos, 9/16 for reels.
  */
-export async function downscale(file: File, aspect = 1): Promise<string> {
+export async function downscale(file: Blob, aspect = 1): Promise<string> {
   const maxWidth = aspect < 1 ? 720 : 1080;
 
   const dataUrl = await new Promise<string>((resolve, reject) => {

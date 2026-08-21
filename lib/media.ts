@@ -66,21 +66,47 @@ export function mediaId(): string {
   )}`;
 }
 
-/** Reads a clip's duration; works for audio as well as video. */
+/**
+ * Reads a clip's duration; works for audio as well as video.
+ *
+ * A MediaRecorder-produced WebM has no Cues element, so its initial
+ * `duration` reads as Infinity/NaN rather than the real length. The
+ * standard workaround: seek near the end, which forces the browser to
+ * scan the file and resolve the true duration, then seek back to 0.
+ */
 export function probeDuration(file: Blob): Promise<number> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const v = document.createElement("video");
     v.preload = "metadata";
-    v.onloadedmetadata = () => {
-      const d = Number.isFinite(v.duration) ? v.duration : 0;
+    v.muted = true;
+
+    const finish = (d: number) => {
       URL.revokeObjectURL(url);
       resolve(d);
     };
-    v.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve(0);
+
+    v.onloadedmetadata = () => {
+      if (Number.isFinite(v.duration)) {
+        finish(v.duration);
+        return;
+      }
+      // Headerless duration — force a scan by seeking past the true end.
+      v.currentTime = 1e9;
+      const onSeeked = () => {
+        v.removeEventListener("timeupdate", onSeeked);
+        const d = Number.isFinite(v.duration) ? v.duration : 0;
+        v.currentTime = 0;
+        finish(d);
+      };
+      v.addEventListener("timeupdate", onSeeked);
+      // Some browsers never fire timeupdate for this seek; don't hang forever.
+      setTimeout(() => {
+        v.removeEventListener("timeupdate", onSeeked);
+        finish(Number.isFinite(v.duration) ? v.duration : 0);
+      }, 3000);
     };
+    v.onerror = () => finish(0);
     v.src = url;
   });
 }

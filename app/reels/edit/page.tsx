@@ -26,6 +26,7 @@ import { downscale } from "@/lib/image";
 import { putMedia } from "@/lib/media";
 import { renderReel, renderSupported } from "@/lib/render";
 import ReelMedia from "@/components/ReelMedia";
+import CameraRecorder from "@/components/CameraRecorder";
 import { generateCaption } from "@/lib/aiClient";
 import Photo from "@/components/Photo";
 
@@ -102,9 +103,9 @@ function Editor() {
   const [musicDuration, setMusicDuration] = useState(0);
   const [musicStart, setMusicStart] = useState(0);
   const [songCredit, setSongCredit] = useState("");
+  const [showCamera, setShowCamera] = useState(false);
 
   const fileInput = useRef<HTMLInputElement>(null);
-  const cameraInput = useRef<HTMLInputElement>(null);
   const musicInput = useRef<HTMLInputElement>(null);
 
   // Seed editor state from the chosen template.
@@ -150,13 +151,16 @@ function Editor() {
     );
   }
 
-  async function pickClip(file: File | undefined, index: number) {
-    if (!file) return;
+  async function applyMediaToSlot(
+    blob: Blob,
+    kind: "video" | "image",
+    index: number
+  ) {
     setError(null);
     setBusySlot(index);
     try {
-      if (file.type.startsWith("video/")) {
-        const record = await putMedia(file, "video");
+      if (kind === "video") {
+        const record = await putMedia(blob, "video");
         setFrames((prev) =>
           prev.map((f, i) =>
             i === index
@@ -174,9 +178,9 @@ function Editor() {
           )
         );
       } else {
-        const dataUrl = await downscale(file, 9 / 16);
-        const blob = await (await fetch(dataUrl)).blob();
-        const record = await putMedia(blob, "image");
+        const dataUrl = await downscale(blob, 9 / 16);
+        const jpeg = await (await fetch(dataUrl)).blob();
+        const record = await putMedia(jpeg, "image");
         setFrames((prev) =>
           prev.map((f, i) =>
             i === index
@@ -199,6 +203,11 @@ function Editor() {
     } finally {
       setBusySlot(null);
     }
+  }
+
+  async function pickClip(file: File | undefined, index: number) {
+    if (!file) return;
+    await applyMediaToSlot(file, file.type.startsWith("video/") ? "video" : "image", index);
   }
 
   async function pickMusic(file: File | undefined) {
@@ -548,7 +557,7 @@ function Editor() {
                   onClick={() => {
                     setActiveSlot(i);
                     setPreviewFrame(i);
-                    cameraInput.current?.click();
+                    setShowCamera(true);
                   }}
                   className="mt-1 flex w-[54px] items-center justify-center gap-1 rounded-md bg-[#efefef] py-1 text-[9px] font-semibold text-ig-text"
                 >
@@ -814,18 +823,17 @@ function Editor() {
         }}
       />
 
-      {/* `capture` asks the phone for its camera rather than the library. */}
-      <input
-        ref={cameraInput}
-        type="file"
-        accept="video/*"
-        capture="environment"
-        hidden
-        onChange={(e) => {
-          pickClip(e.target.files?.[0], activeSlot);
-          e.target.value = "";
-        }}
-      />
+      {showCamera && (
+        <CameraRecorder
+          allowPhoto
+          defaultMode="video"
+          onClose={() => setShowCamera(false)}
+          onCapture={(blob, kind) => {
+            setShowCamera(false);
+            applyMediaToSlot(blob, kind, activeSlot);
+          }}
+        />
+      )}
     </div>
   );
 }
