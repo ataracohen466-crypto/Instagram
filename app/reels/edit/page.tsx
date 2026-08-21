@@ -27,8 +27,6 @@ import { photoUrl } from "@/lib/seed";
 import { downscale } from "@/lib/image";
 import { putMedia } from "@/lib/media";
 import { renderReel, renderSupported } from "@/lib/render";
-import SpotifyPicker from "@/components/SpotifyPicker";
-import type { SpotifyTrack } from "@/lib/spotify";
 import ReelMedia from "@/components/ReelMedia";
 import { generateCaption } from "@/lib/aiClient";
 import Photo from "@/components/Photo";
@@ -103,7 +101,7 @@ function Editor() {
   const [musicId, setMusicId] = useState<string | undefined>();
   const [musicTitle, setMusicTitle] = useState("");
   const [musicVolume, setMusicVolume] = useState(0.65);
-  const [track, setTrack] = useState<SpotifyTrack | null>(null);
+  const [songCredit, setSongCredit] = useState("");
 
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
@@ -248,8 +246,8 @@ function Editor() {
       frameSeeds: frames.map((f) => f.seed),
       frames,
       caption: caption.trim() || template!.name,
-      audioLabel: track
-        ? `${track.name} · ${track.artist}`
+      audioLabel: songCredit.trim()
+        ? songCredit.trim()
         : musicTitle
           ? `${profile.username} · ${musicTitle}`
           : `${profile.username} · ${template!.audioLabel}`,
@@ -263,11 +261,7 @@ function Editor() {
       textStyle: template!.textStyle,
       musicMediaId: musicId,
       musicTitle: musicTitle || undefined,
-      spotifyUri: track?.uri,
-      spotifyName: track?.name,
-      spotifyArtist: track?.artist,
-      spotifyUrl: track?.url,
-      spotifyArtwork: track?.artwork,
+      songCredit: songCredit.trim() || undefined,
       isMine: true,
     };
 
@@ -591,22 +585,18 @@ function Editor() {
           )}
         </div>
 
-        {/* Spotify song */}
-        <p className="mt-5 text-[13px] font-semibold">Song credit (Spotify)</p>
+        {/* Song credit */}
+        <p className="mt-5 text-[13px] font-semibold">Song credit</p>
         <div className="mt-2 rounded-xl border border-ig-border p-3">
-          <SpotifyPicker
-            selected={
-              track
-                ? { name: track.name, artist: track.artist, url: track.url }
-                : undefined
-            }
-            onSelect={setTrack}
-            onClear={() => setTrack(null)}
+          <input
+            value={songCredit}
+            onChange={(e) => setSongCredit(e.target.value)}
+            placeholder="Song title · Artist"
+            className="w-full rounded-lg bg-[#efefef] px-3 py-2 text-[13px] outline-none placeholder:text-ig-muted"
           />
           <p className="mt-2 text-[11px] leading-4 text-ig-muted">
-            Shows on the reel like Instagram and plays for viewers with Spotify
-            Premium. Spotify audio can&apos;t be written into the exported
-            video — use background music above for that.
+            Shows on the reel like a music credit. It&apos;s a label only —
+            no audio plays for it. Use background music above for that.
           </p>
         </div>
 

@@ -40,16 +40,9 @@ export interface Reel {
   /** Background music mixed into the exported video. */
   musicMediaId?: string;
   musicTitle?: string;
-  /**
-   * A Spotify track attached to the reel. Metadata only — its audio is
-   * DRM-protected and never enters the exported file; Premium viewers hear
-   * it streamed alongside instead.
-   */
-  spotifyUri?: string;
-  spotifyName?: string;
-  spotifyArtist?: string;
-  spotifyUrl?: string;
-  spotifyArtwork?: string;
+  /** A free-text "Song · Artist" credit shown on the reel. Display only —
+   * no audio is attached or played for it. */
+  songCredit?: string;
   /** Present on reels the user built from a template. */
   frames?: ReelFrame[];
   templateId?: string;
