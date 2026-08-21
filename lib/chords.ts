@@ -26,11 +26,28 @@ export const CHORDS: Record<string, ChordDef> = {
   D7: { id: "D7", name: "D7", frets: [null, null, 0, 2, 1, 2], fingers: [null, null, null, 2, 1, 3], difficulty: 2 },
   Csus4: { id: "Csus4", name: "C sus4", frets: [null, 3, 3, 0, 1, 1], fingers: [null, 3, 4, null, 1, 1], difficulty: 3 },
   Cadd9: { id: "Cadd9", name: "C add9", frets: [null, 3, 2, 0, 3, 0], fingers: [null, 2, 1, null, 3, null], difficulty: 3 },
+  Bm: {
+    id: "Bm",
+    name: "B minor (mini barre)",
+    frets: [null, 2, 4, 4, 3, 2],
+    fingers: [null, 1, 3, 4, 2, 1],
+    barre: { fret: 2, fromString: 1, toString: 5 },
+    difficulty: 4,
+  },
 };
 
 export const CHORD_ORDER_BY_DIFFICULTY = Object.values(CHORDS)
   .sort((a, b) => a.difficulty - b.difficulty)
   .map((c) => c.id);
+
+// Fancier chord names real songs use, mapped to the nearest shape we have a
+// diagram for. The label shown to the player is always the real chord name
+// (e.g. "Em7") — only the fretboard picture is simplified to a shape we draw.
+export const CHORD_DIAGRAM_ALIAS: Record<string, string> = { Em7: "Em", Dsus4: "D", A7sus4: "A7", "D/F#": "D" };
+
+export function diagramIdFor(chordId: string): string {
+  return CHORD_DIAGRAM_ALIAS[chordId] ?? chordId;
+}
 
 // Note names, used by the pitch detector to label detected frequencies.
 export const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];

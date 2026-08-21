@@ -1,7 +1,7 @@
-import { CHORDS } from "@/lib/chords";
+import { CHORDS, diagramIdFor } from "@/lib/chords";
 
 export default function ChordDiagram({ chordId, size = 120 }: { chordId: string; size?: number }) {
-  const chord = CHORDS[chordId];
+  const chord = CHORDS[diagramIdFor(chordId)];
   if (!chord) {
     return (
       <div
@@ -112,7 +112,7 @@ export default function ChordDiagram({ chordId, size = 120 }: { chordId: string;
           );
         })}
       </svg>
-      <span className="text-sm font-medium text-ink-100">{chord.id}</span>
+      <span className="text-sm font-medium text-ink-100">{chordId}</span>
     </div>
   );
 }

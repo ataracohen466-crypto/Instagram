@@ -19,10 +19,13 @@ brand identity — lives in **[`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)**.
 - **Live Coach** (`/live-coach`) — real mic input, in-browser autocorrelation
   pitch detection (tuner mode) and chroma-based chord matching (chord-check
   mode), with short, rule-based coaching feedback. No audio is uploaded.
-- **Learn a Song** (`/learn-song`) — describe a song or vibe and get an
-  *original* teaching arrangement (never a copyrighted transcription): chords,
-  chord diagrams, strumming pattern, tab, BPM, slow-practice-mode click track,
-  and beginner/intermediate/advanced versions.
+- **Learn a Song** (`/learn-song`) — pick from a curated list of real,
+  well-known songs (Wonderwall, Perfect, Let It Be, and more) and get their
+  chord chart, capo, and strum pattern (chords only — no lyrics or
+  note-for-note transcription of the recording); or describe a song or vibe
+  and get an *original* teaching arrangement instead, with chords, chord
+  diagrams, strumming pattern, tab, BPM, slow-practice-mode click track, and
+  beginner/intermediate/advanced versions.
 - **Fix My Playing** (`/fix-my-playing`) — play a full built-in practice song
   along with a click track; the app measures your actual chord accuracy and
   strum timing via real signal processing, ranks your biggest issues, and

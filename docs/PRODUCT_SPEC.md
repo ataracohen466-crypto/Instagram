@@ -102,15 +102,30 @@ the "don't overwhelm" principle.
 
 ## 6. Song-Learning Interface
 
-`/learn-song`: a title/vibe input plus genre/mood/difficulty selectors call
-`/api/ai/song-arrangement`. The result renders as: difficulty stars, BPM, time
-signature, capo, a chord-diagram strip, a **slow practice mode** slider (50–
-100% of tempo) wired to a real Web Audio metronome, then section-by-section
-cards (chords used, a strum-pattern arrow row, an optional ASCII tab block,
-and a short teaching note), and a beginner/intermediate/advanced tab. The
-arrangement is explicitly original — the system prompt forbids reproducing
-copyrighted lyrics or transcribing an existing recording, and every response
-carries a one-line disclaimer to that effect.
+`/learn-song` has two paths, because "teach me a song" splits into two
+genuinely different requests:
+
+- **A specific song the learner already knows** — a curated grid of real,
+  well-known songs (`lib/popularSongs.ts`) they tap directly. Each shows the
+  song's title/artist, capo, BPM, and its chord progression by section
+  (Verse/Chorus/Bridge). This is deliberately **chords only**: a chord
+  progression is a functional building block, not independently
+  copyrightable, which is why every chord-chart site can publish them — but
+  we never reproduce lyrics or a note-for-note transcription of the
+  recording, so this stays firmly in "here's how the song is built," not "a
+  copy of the song."
+- **A vibe, mood, or song idea with no fixed identity** ("a slow acoustic
+  love song") — a title/vibe input plus genre/mood/difficulty selectors call
+  `/api/ai/song-arrangement` and get back a fully **original** teaching
+  arrangement, explicitly never a transcription of an existing recording.
+
+Both render the same way: difficulty stars, BPM, time signature, capo, a
+chord-diagram strip, a **slow practice mode** slider (50–100% of tempo)
+wired to a real Web Audio metronome, and section-by-section cards (chords
+used plus a strum-pattern arrow row). The AI-generated path additionally
+gets an optional ASCII tab block, a short teaching note per section, and a
+beginner/intermediate/advanced tab — every AI response also carries a
+one-line disclaimer that it's an original arrangement, not a transcription.
 
 ## 7. "Fix My Playing" Analysis Screen
 
