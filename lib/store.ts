@@ -4,7 +4,8 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { ChatMessage, Comment, Post, Profile } from "./types";
 import { buildSeedFeed, uid } from "./seed";
-import { Reel, buildSeedReels } from "./reels";
+import type { Reel } from "./reels";
+import { buildSeedReels } from "./reels";
 
 interface AppState {
   hydrated: boolean;
@@ -20,6 +21,8 @@ interface AppState {
   deletePost: (postId: string) => void;
   toggleReelLike: (reelId: string) => void;
   addReelComment: (reelId: string, comment: Comment) => void;
+  addReel: (reel: Reel) => void;
+  deleteReel: (reelId: string) => void;
   appendChat: (personaId: string, message: ChatMessage) => void;
   markHydrated: () => void;
 }
@@ -92,6 +95,11 @@ export const useApp = create<AppState>()(
             r.id === reelId ? { ...r, comments: [...r.comments, comment] } : r
           ),
         })),
+
+      addReel: (reel) => set((state) => ({ reels: [reel, ...state.reels] })),
+
+      deleteReel: (reelId) =>
+        set((state) => ({ reels: state.reels.filter((r) => r.id !== reelId) })),
 
       appendChat: (personaId, message) =>
         set((state) => ({

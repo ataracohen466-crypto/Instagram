@@ -2,6 +2,16 @@ import { PERSONAS } from "./personas";
 import { Comment } from "./types";
 import { fallbackComment } from "./fallback";
 import { uid } from "./seed";
+import type { TransitionId, FilterId, TextStyleId } from "./reelTemplates";
+
+/** One frame of a template-built reel: the user's photo plus its overlay. */
+export interface ReelFrame {
+  /** Data URL of a photo the user picked; falls back to `seed` when absent. */
+  imageUrl?: string;
+  seed: string;
+  seconds: number;
+  text: string;
+}
 
 export interface Reel {
   id: string;
@@ -14,6 +24,14 @@ export interface Reel {
   likedBy: string[];
   comments: Comment[];
   createdAt: number;
+  /** Present on reels the user built from a template. */
+  frames?: ReelFrame[];
+  templateId?: string;
+  templateName?: string;
+  transition?: TransitionId;
+  filter?: FilterId;
+  textStyle?: TextStyleId;
+  isMine?: boolean;
 }
 
 const REEL_CAPTIONS: Record<string, string[]> = {

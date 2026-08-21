@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Heart,
@@ -10,20 +10,50 @@ import {
   Music2,
   Volume2,
   VolumeX,
+  Trash2,
 } from "lucide-react";
-import { Reel } from "@/lib/reels";
+import { Reel, ReelFrame } from "@/lib/reels";
 import { Comment } from "@/lib/types";
 import { useApp, MY_ID, uid } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
 import { generateComments } from "@/lib/aiClient";
+import { FILTERS } from "@/lib/reelTemplates";
 import Photo from "./Photo";
 
 const FRAME_DURATION = 4200;
+
+/** Overlay text placement/appearance per template text style. */
+const TEXT_STYLES: Record<string, string> = {
+  "bold-center":
+    "inset-x-6 top-1/2 -translate-y-1/2 text-center text-[30px] font-extrabold uppercase leading-[1.1] tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]",
+  subtitle:
+    "inset-x-6 bottom-[38%] text-center text-[17px] font-semibold drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]",
+  handwritten:
+    "inset-x-8 top-[18%] text-center text-[26px] font-medium italic leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]",
+  sticker:
+    "inset-x-0 top-[22%] flex justify-center text-[19px] font-bold",
+  "minimal-corner":
+    "left-5 top-[14%] text-left text-[14px] font-medium uppercase tracking-[0.18em] drop-shadow",
+  counter:
+    "inset-x-6 top-[16%] text-center text-[44px] font-black tabular-nums leading-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]",
+};
+
+/** Per-frame entry animation for each transition style. */
+const TRANSITION_CLASS: Record<string, string> = {
+  cut: "",
+  fade: "reel-tr-fade",
+  zoom: "reel-ken-in",
+  slide: "reel-tr-slide",
+  flash: "reel-tr-flash",
+  whip: "reel-tr-whip",
+  blur: "reel-tr-blur",
+};
 
 export default function ReelCard({ reel }: { reel: Reel }) {
   const profile = useApp((s) => s.profile);
   const toggleReelLike = useApp((s) => s.toggleReelLike);
   const addReelComment = useApp((s) => s.addReelComment);
+  const deleteReel = useApp((s) => s.deleteReel);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const lastTap = useRef(0);
@@ -39,6 +69,29 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const liked = reel.likedBy.includes(MY_ID);
   const likeCount = reel.likedBy.length;
 
+  // Template reels carry explicit frames; seeded persona reels use frameSeeds.
+  // Memoised so an unrelated re-render (a like, a new comment) can't restart
+  // the playback timer partway through the current clip.
+  const frames: ReelFrame[] = useMemo(
+    () =>
+      reel.frames?.length
+        ? reel.frames
+        : reel.frameSeeds.map((seed) => ({
+            seed,
+            seconds: FRAME_DURATION / 1000,
+            text: "",
+          })),
+    [reel.frames, reel.frameSeeds]
+  );
+
+  const frameCount = frames.length;
+  const current = frames[Math.min(frame, frameCount - 1)];
+  const filterCss = FILTERS[reel.filter ?? "none"] ?? "none";
+  const transitionClass =
+    TRANSITION_CLASS[reel.transition ?? "zoom"] ?? "reel-ken-in";
+  const textClass =
+    TEXT_STYLES[reel.textStyle ?? "minimal-corner"] ?? TEXT_STYLES["minimal-corner"];
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -50,13 +103,18 @@ export default function ReelCard({ reel }: { reel: Reel }) {
     return () => observer.disconnect();
   }, []);
 
+  // Each frame holds for its own duration, so template pacing is respected.
   useEffect(() => {
-    if (!active || reel.frameSeeds.length < 2) return;
-    const id = setInterval(() => {
-      setFrame((f) => (f + 1) % reel.frameSeeds.length);
-    }, FRAME_DURATION);
-    return () => clearInterval(id);
-  }, [active, reel.frameSeeds.length]);
+    if (!active || frameCount < 2) return;
+    const hold = (frames[frame % frameCount]?.seconds ?? 4) * 1000;
+    const id = setTimeout(() => setFrame((f) => (f + 1) % frameCount), hold);
+    return () => clearTimeout(id);
+  }, [active, frame, frameCount, frames]);
+
+  // Restart from the top whenever a reel scrolls back into view.
+  useEffect(() => {
+    if (!active) setFrame(0);
+  }, [active]);
 
   function like() {
     if (!liked) toggleReelLike(reel.id);
@@ -113,24 +171,55 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       ref={containerRef}
       className="relative h-[100dvh] w-full shrink-0 snap-start snap-always overflow-hidden bg-black"
     >
-      {reel.frameSeeds.map((seed, i) => (
+      {frames.map((f, i) => (
         <div
-          key={`${seed}-${i === frame ? "on" : "off"}`}
-          className={`absolute inset-0 transition-opacity duration-700 ${
+          key={`${f.seed}-${i}-${i === frame ? "on" : "off"}`}
+          className={`absolute inset-0 transition-opacity duration-500 ${
             i === frame ? "opacity-100" : "opacity-0"
           }`}
+          style={{ filter: filterCss }}
         >
           <Photo
-            src={photoUrl(seed, 1080)}
-            seed={seed}
+            src={f.imageUrl ?? photoUrl(f.seed, 1080)}
+            seed={f.seed}
             className={`h-full w-full object-cover ${
-              active && i === frame ? "reel-ken-in" : ""
+              active && i === frame ? transitionClass : ""
             }`}
           />
         </div>
       ))}
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
+
+      {/* Overlay text for the current frame */}
+      {current?.text && (
+        <div
+          key={`text-${frame}`}
+          className={`pointer-events-none absolute z-[5] text-white reel-tr-fade ${textClass}`}
+        >
+          {reel.textStyle === "sticker" ? (
+            <span className="rounded-lg bg-white px-3 py-1.5 text-ig-text shadow-lg">
+              {current.text}
+            </span>
+          ) : (
+            current.text
+          )}
+        </div>
+      )}
+
+      {/* Progress segments, one per frame */}
+      {frameCount > 1 && (
+        <div className="pointer-events-none absolute inset-x-3 top-[52px] z-10 flex gap-1">
+          {frames.map((_, i) => (
+            <span
+              key={i}
+              className={`h-[2px] flex-1 rounded-full ${
+                i <= frame ? "bg-white" : "bg-white/35"
+              }`}
+            />
+          ))}
+        </div>
+      )}
 
       <div onClick={onTap} className="absolute inset-0" />
 
@@ -148,7 +237,7 @@ export default function ReelCard({ reel }: { reel: Reel }) {
           setMuted((m) => !m);
         }}
         aria-label={muted ? "Unmute" : "Mute"}
-        className="absolute right-3 top-3 z-10 rounded-full bg-black/30 p-1.5 text-white"
+        className="absolute right-3 top-[62px] z-10 rounded-full bg-black/30 p-1.5 text-white"
       >
         {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
       </button>
@@ -177,9 +266,20 @@ export default function ReelCard({ reel }: { reel: Reel }) {
         <button className="flex flex-col items-center gap-1">
           <Send size={25} />
         </button>
-        <button>
-          <Bookmark size={25} />
-        </button>
+        {reel.isMine ? (
+          <button
+            onClick={() => {
+              if (confirm("Delete this reel?")) deleteReel(reel.id);
+            }}
+            aria-label="Delete reel"
+          >
+            <Trash2 size={24} />
+          </button>
+        ) : (
+          <button aria-label="Save">
+            <Bookmark size={25} />
+          </button>
+        )}
         <div className="h-7 w-7 overflow-hidden rounded-md border border-white/70">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -203,10 +303,17 @@ export default function ReelCard({ reel }: { reel: Reel }) {
             className="h-8 w-8 rounded-full border border-white/70"
           />
           <span className="text-[14px] font-semibold">{reel.authorUsername}</span>
-          <span className="rounded border border-white/70 px-2 py-0.5 text-[11px] font-semibold">
-            Follow
-          </span>
+          {!reel.isMine && (
+            <span className="rounded border border-white/70 px-2 py-0.5 text-[11px] font-semibold">
+              Follow
+            </span>
+          )}
         </Link>
+        {reel.templateName && (
+          <p className="mt-1 text-[11px] text-white/70">
+            Template · {reel.templateName}
+          </p>
+        )}
         <p className="mt-2 text-[13px] leading-[17px]">{reel.caption}</p>
         <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-white/90">
           <Music2 size={13} /> {reel.audioLabel}

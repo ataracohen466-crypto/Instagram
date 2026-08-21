@@ -91,3 +91,89 @@ body {
 .reel-ken-out {
   animation: ken-burns-out 7s ease-in-out forwards;
 }
+
+/* Per-frame entry transitions used by reel templates. */
+@keyframes reel-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes reel-slide-in {
+  from {
+    transform: translateX(14%);
+    opacity: 0.2;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes reel-flash-in {
+  0% {
+    filter: brightness(3);
+    opacity: 0.2;
+  }
+  18% {
+    filter: brightness(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.06);
+  }
+}
+@keyframes reel-whip-in {
+  0% {
+    transform: translateX(30%) skewX(-9deg);
+    opacity: 0;
+  }
+  55% {
+    transform: translateX(0) skewX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+@keyframes reel-blur-in {
+  0% {
+    filter: blur(14px);
+    opacity: 0.3;
+  }
+  45% {
+    filter: blur(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+
+.reel-tr-fade {
+  animation: reel-fade-in 0.5s ease forwards;
+}
+.reel-tr-slide {
+  animation: reel-slide-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.reel-tr-flash {
+  animation: reel-flash-in 2.6s ease-out forwards;
+}
+.reel-tr-whip {
+  animation: reel-whip-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.reel-tr-blur {
+  animation: reel-blur-in 2.8s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reel-ken-in,
+  .reel-ken-out,
+  .reel-tr-slide,
+  .reel-tr-flash,
+  .reel-tr-whip,
+  .reel-tr-blur {
+    animation: reel-fade-in 0.4s ease forwards;
+  }
+}
