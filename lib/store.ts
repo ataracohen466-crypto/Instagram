@@ -8,14 +8,18 @@ import { ChatMessage, Comment, Post, Profile } from "./types";
 import { buildSeedFeed, uid } from "./seed";
 import type { Reel } from "./reels";
 import { buildSeedReels } from "./reels";
+import type { StoryItem } from "./stories";
 
 interface AppState {
   hydrated: boolean;
   profile: Profile | null;
   posts: Post[];
   reels: Reel[];
+  myStory: StoryItem[];
   chats: Record<string, ChatMessage[]>;
   setProfile: (profile: Profile) => void;
+  addStoryItem: (item: StoryItem) => void;
+  removeStoryItem: (id: string) => void;
   resetEverything: () => void;
   toggleLike: (postId: string) => void;
   addComment: (postId: string, comment: Comment) => void;
@@ -72,7 +76,7 @@ export function unbindVault(): void {
   vaultKey = null;
   // Drop decrypted clip URLs so one account's media can't leak into the next.
   clearMediaCache();
-  useApp.setState({ profile: null, posts: [], reels: [], chats: {} });
+  useApp.setState({ profile: null, posts: [], reels: [], myStory: [], chats: {} });
 }
 
 export const useApp = create<AppState>()(
@@ -82,6 +86,7 @@ export const useApp = create<AppState>()(
       profile: null,
       posts: [],
       reels: [],
+      myStory: [],
       chats: {},
 
       markHydrated: () => set({ hydrated: true }),
@@ -93,7 +98,14 @@ export const useApp = create<AppState>()(
           reels: state.reels.length ? state.reels : buildSeedReels(),
         })),
 
-      resetEverything: () => set({ profile: null, posts: [], reels: [], chats: {} }),
+      resetEverything: () =>
+        set({ profile: null, posts: [], reels: [], myStory: [], chats: {} }),
+
+      addStoryItem: (item) =>
+        set((state) => ({ myStory: [...state.myStory, item] })),
+
+      removeStoryItem: (id) =>
+        set((state) => ({ myStory: state.myStory.filter((s) => s.id !== id) })),
 
       toggleLike: (postId) =>
         set((state) => ({
@@ -173,6 +185,7 @@ export const useApp = create<AppState>()(
         profile: state.profile,
         posts: state.posts,
         reels: state.reels,
+        myStory: state.myStory,
         chats: state.chats,
       }),
       onRehydrateStorage: () => (state) => {
