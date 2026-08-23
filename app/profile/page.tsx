@@ -3,7 +3,10 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Grid3x3, Bookmark, UserSquare, Settings } from "lucide-react";
+import { Grid3x3, Bookmark, UserSquare, Settings, Copy, Play } from "lucide-react";
+import { Post } from "@/lib/types";
+import { coverSlide, hasMultipleSlides, hasVideo } from "@/lib/postMedia";
+import { getMediaUrl } from "@/lib/media";
 import { getPersona } from "@/lib/personas";
 import { useApp, unbindVault } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
@@ -11,6 +14,44 @@ import Photo from "@/components/Photo";
 import { getApiKey, setApiKey } from "@/lib/aiClient";
 import { changePassword, clearSession, deleteAccount } from "@/lib/vault";
 import { passwordProblem } from "@/lib/crypto";
+
+/** A post's cover in the profile grid — its first slide, video or photo. */
+function GridThumb({ post }: { post: Post }) {
+  const slide = coverSlide(post);
+  const [url, setUrl] = useState<string | null>(slide.url ?? null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (slide.mediaId) {
+      getMediaUrl(slide.mediaId).then((resolved) => {
+        if (!cancelled) setUrl(resolved);
+      });
+    } else {
+      setUrl(slide.url ?? null);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [slide.mediaId, slide.url]);
+
+  if (slide.kind === "video") {
+    return url ? (
+      /* Metadata alone paints the first frame, which is all a thumbnail needs. */
+      /* eslint-disable-next-line jsx-a11y/media-has-caption */
+      <video src={url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+    ) : (
+      <div className="h-full w-full bg-ig-bg" />
+    );
+  }
+
+  return (
+    <Photo
+      src={url ?? photoUrl(slide.seed ?? post.imageSeed, 400)}
+      seed={slide.seed ?? post.imageSeed}
+      className="h-full w-full object-cover"
+    />
+  );
+}
 
 /** Renders the build stamp as a short local date/time, e.g. "23 Aug, 02:15". */
 function formatBuild(iso: string | undefined): string {
@@ -322,12 +363,21 @@ function ProfileBody() {
       ) : (
         <div className="grid grid-cols-3 gap-[2px]">
           {myPosts.map((p) => (
-            <div key={p.id} className="aspect-square bg-ig-bg">
-              <Photo
-                src={p.imageUrl ?? photoUrl(p.imageSeed, 400)}
-                seed={p.imageSeed}
-                className="h-full w-full object-cover"
-              />
+            <div key={p.id} className="relative aspect-square bg-ig-bg">
+              <GridThumb post={p} />
+              {hasMultipleSlides(p) && (
+                <Copy
+                  size={15}
+                  className="absolute right-1.5 top-1.5 text-white drop-shadow"
+                />
+              )}
+              {hasVideo(p) && !hasMultipleSlides(p) && (
+                <Play
+                  size={15}
+                  fill="white"
+                  className="absolute right-1.5 top-1.5 text-white drop-shadow"
+                />
+              )}
             </div>
           ))}
         </div>

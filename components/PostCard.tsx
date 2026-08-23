@@ -10,9 +10,10 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { Post } from "@/lib/types";
-import Photo from "./Photo";
+import PostMediaCarousel from "./PostMediaCarousel";
+import { postSlides } from "@/lib/postMedia";
 import { useApp, MY_ID, uid } from "@/lib/store";
-import { avatarUrl, photoUrl } from "@/lib/seed";
+import { avatarUrl } from "@/lib/seed";
 import { timeAgo } from "@/lib/time";
 import { generateComments } from "@/lib/aiClient";
 
@@ -32,7 +33,7 @@ export default function PostCard({ post }: { post: Post }) {
 
   const liked = post.likedBy.includes(MY_ID);
   const likeCount = post.likedBy.length;
-  const image = post.imageUrl ?? photoUrl(post.imageSeed);
+  const slides = postSlides(post);
 
   function like() {
     if (!post.likedBy.includes(MY_ID)) toggleLike(post.id);
@@ -147,15 +148,8 @@ export default function PostCard({ post }: { post: Post }) {
         </div>
       </header>
 
-      <div
-        className="relative aspect-square w-full select-none bg-ig-bg"
-        onClick={onImageTap}
-      >
-        <Photo
-          src={image}
-          seed={post.imageSeed}
-          className="h-full w-full object-cover"
-        />
+      <div className="relative">
+        <PostMediaCarousel slides={slides} onTap={onImageTap} />
         {burst && (
           <Heart
             size={96}

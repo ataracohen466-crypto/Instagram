@@ -17,12 +17,30 @@ export interface Comment {
   isMe?: boolean;
 }
 
+/** One slide of a post. A post with several of these renders as a carousel. */
+export interface PostMedia {
+  id: string;
+  kind: "image" | "video";
+  /** Encrypted blob in the media store — anything you upload or film. */
+  mediaId?: string;
+  /** A data URL, used by posts made before the media store existed. */
+  url?: string;
+  /** A stock-photo seed, used by the seeded AI posts. */
+  seed?: string;
+}
+
 export interface Post {
   id: string;
   authorUsername: string;
   authorAvatarSeed: string;
   imageSeed: string;
   imageUrl?: string;
+  /**
+   * The post's slides. Absent on every post made before carousels existed,
+   * which is why `postSlides()` falls back to imageUrl/imageSeed rather than
+   * this being required.
+   */
+  media?: PostMedia[];
   caption: string;
   likedBy: string[];
   comments: Comment[];
