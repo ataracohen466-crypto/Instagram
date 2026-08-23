@@ -6,10 +6,12 @@ on:
   # Lets you re-run a deploy by hand from the Actions tab.
   workflow_dispatch:
 
+# Pushing the built site to the gh-pages branch is what Pages serves, so this
+# needs write access to contents. It deliberately does NOT use the Pages
+# deploy API: this repo's Pages source is "deploy from a branch", and the
+# environment-based deploy is rejected unless that's switched to "Actions".
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 # Never let two deploys race; the newest push wins.
 concurrency:
@@ -17,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,34 +31,28 @@ jobs:
 
       - run: npm ci
 
-      # `enablement: true` turns Pages on and points it at this workflow, so a
-      # missing or mis-set Pages source repairs itself on the next push.
-      - id: pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
       - name: Build static site
         env:
-          # Hardcoded rather than read from the configure-pages output: an
-          # empty/unexpected value would silently ship a site whose every
-          # asset 404s. The repo name is fixed, so this is safe.
+          # The site is served from https://<user>.github.io/Instagram/, so
+          # every asset needs that prefix. Hardcoded rather than derived: an
+          # empty value would ship a site whose every asset 404s.
           NEXT_PUBLIC_BASE_PATH: /Instagram
         run: npm run build
 
-      # Without this, Pages' Jekyll pass strips Next's _next/ directory.
-      - run: touch out/.nojekyll
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: out
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish to gh-pages
+        run: |
+          set -euo pipefail
+          # Without this, Pages' Jekyll pass strips Next's _next/ directory.
+          touch out/.nojekyll
+          cd out
+          git init -q
+          git checkout -qb gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Deploy ${GITHUB_SHA::7}"
+          git push -f \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

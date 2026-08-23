@@ -12,6 +12,19 @@ import { getApiKey, setApiKey } from "@/lib/aiClient";
 import { changePassword, clearSession, deleteAccount } from "@/lib/vault";
 import { passwordProblem } from "@/lib/crypto";
 
+/** Renders the build stamp as a short local date/time, e.g. "23 Aug, 02:15". */
+function formatBuild(iso: string | undefined): string {
+  if (!iso) return "unknown";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "unknown";
+  return d.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function SettingsSheet({ onClose }: { onClose: () => void }) {
   const profile = useApp((s) => s.profile);
   const [key, setKey] = useState("");
@@ -168,6 +181,10 @@ function SettingsSheet({ onClose }: { onClose: () => void }) {
         >
           Close
         </button>
+
+        <p className="pb-1 text-center text-[11px] text-ig-muted">
+          Build {formatBuild(process.env.NEXT_PUBLIC_BUILD_TIME)}
+        </p>
       </div>
     </div>
   );
