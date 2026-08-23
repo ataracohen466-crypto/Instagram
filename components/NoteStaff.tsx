@@ -17,7 +17,7 @@ export default function NoteStaff({
   size?: "sm" | "md";
 }) {
   const lineGap = size === "sm" ? 8 : 11;
-  const noteGap = size === "sm" ? 40 : 56;
+  const noteGap = size === "sm" ? 74 : 90;
   const padLeft = 56;
   const padRight = 24;
   const staffTop = 40;
@@ -57,7 +57,9 @@ export default function NoteStaff({
             for (let s = 10; s <= note.staffStep; s += 2) ledgerSteps.push(s);
           }
           const src = notes[i];
-          const posLabel = src.stringIndex !== undefined && src.fret !== undefined ? `${STRING_NAMES[src.stringIndex]} · fret ${src.fret}` : null;
+          const hasPos = src.stringIndex !== undefined && src.fret !== undefined;
+          const posLabel = hasPos ? STRING_NAMES[src.stringIndex!] : null;
+          const fretLabel = hasPos ? `fret ${src.fret}` : null;
 
           return (
             <g key={i}>
@@ -71,9 +73,14 @@ export default function NoteStaff({
               )}
               <ellipse cx={x} cy={y} rx={7} ry={5.5} fill={isActive ? "#e8a93d" : "#e4e7ec"} transform={`rotate(-18 ${x} ${y})`} />
               {posLabel && (
-                <text x={x} y={height - 8} textAnchor="middle" fontSize={10} fill={isActive ? "#e8a93d" : "#88909c"}>
-                  {posLabel}
-                </text>
+                <>
+                  <text x={x} y={height - 20} textAnchor="middle" fontSize={10} fill={isActive ? "#e8a93d" : "#88909c"}>
+                    {posLabel}
+                  </text>
+                  <text x={x} y={height - 8} textAnchor="middle" fontSize={10} fill={isActive ? "#e8a93d" : "#88909c"}>
+                    {fretLabel}
+                  </text>
+                </>
               )}
             </g>
           );
