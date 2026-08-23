@@ -1,203 +1,196 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
-import { readVault, writeVault, setActive } from "./vault";
-import { clearMediaCache } from "./media";
-import { ChatMessage, Comment, Post, Profile } from "./types";
-import { buildSeedFeed, uid } from "./seed";
-import type { Reel } from "./reels";
-import { buildSeedReels } from "./reels";
-import type { StoryItem } from "./stories";
+import { persist } from "zustand/middleware";
+import type {
+  OnboardingProfile,
+  UserProgress,
+  FixMyPlayingReport,
+  GameScore,
+  PracticeSessionRecord,
+  PathKey,
+  PathProgress,
+  SkillLevel,
+} from "./types";
 
-interface AppState {
-  hydrated: boolean;
-  profile: Profile | null;
-  posts: Post[];
-  reels: Reel[];
-  myStory: StoryItem[];
-  chats: Record<string, ChatMessage[]>;
-  setProfile: (profile: Profile) => void;
-  addStoryItem: (item: StoryItem) => void;
-  removeStoryItem: (id: string) => void;
-  resetEverything: () => void;
-  toggleLike: (postId: string) => void;
-  addComment: (postId: string, comment: Comment) => void;
-  addPost: (post: Post) => void;
-  deletePost: (postId: string) => void;
-  toggleReelLike: (reelId: string) => void;
-  addReelComment: (reelId: string, comment: Comment) => void;
-  addReel: (reel: Reel) => void;
-  deleteReel: (reelId: string) => void;
-  setReelVideo: (reelId: string, mediaId: string, duration: number) => void;
-  appendChat: (personaId: string, message: ChatMessage) => void;
-  markHydrated: () => void;
-}
-
-const ME = "__me__";
-
-/**
- * The vault key only exists after a successful login, so the store starts
- * with no storage bound. `bindVault` attaches it and replays the account's
- * saved state; `unbindVault` drops it on logout.
- */
-let vaultUser: string | null = null;
-let vaultKey: CryptoKey | null = null;
-
-const encryptedStorage: StateStorage = {
-  getItem: async (): Promise<string | null> => {
-    if (!vaultUser || !vaultKey) return null;
-    return readVault(vaultUser, vaultKey);
-  },
-  setItem: async (_name, value): Promise<void> => {
-    if (!vaultUser || !vaultKey) return;
-    await writeVault(vaultUser, vaultKey, value);
-  },
-  removeItem: async (): Promise<void> => {
-    /* Accounts are removed via deleteAccount, not by clearing state. */
-  },
+const defaultProfile: OnboardingProfile = {
+  name: "",
+  guitarType: "acoustic",
+  skillLevel: "beginner",
+  genres: [],
+  artists: "",
+  goals: [],
+  minutesPerDay: 15,
+  focus: "mixture",
+  completedAt: null,
 };
 
-export async function bindVault(
-  username: string,
-  key: CryptoKey
-): Promise<void> {
-  vaultUser = username;
-  vaultKey = key;
-  // The media store encrypts clips with this same key.
-  setActive(username, key);
-  await useApp.persist.rehydrate();
-  // A brand-new account has no vault yet, so onRehydrateStorage may not fire.
-  useApp.setState({ hydrated: true });
+function freshPathProgress(unlockedLevel = 1): PathProgress {
+  return { completedLessonIds: [], unlockedLevel };
 }
 
-export function unbindVault(): void {
-  vaultUser = null;
-  vaultKey = null;
-  // Drop decrypted clip URLs so one account's media can't leak into the next.
-  clearMediaCache();
-  useApp.setState({ profile: null, posts: [], reels: [], myStory: [], chats: {} });
+const defaultProgress: UserProgress = {
+  level: "beginner",
+  chordsMastered: [],
+  chordReps: {},
+  songsLearned: [],
+  streakDays: 0,
+  lastPracticeDate: null,
+  totalPracticeMinutes: 0,
+  sessionHistory: [],
+  fixReports: [],
+  gameScores: [],
+  weakAreas: [],
+  paths: { chords: freshPathProgress(), notes: freshPathProgress(), tabs: freshPathProgress() },
+};
+
+// Onboarding's 5-tier self-report maps to a starting level (1-20) in each
+// path so an intermediate/advanced learner isn't stuck redoing open chords.
+const STARTING_LEVEL_BY_SKILL: Record<SkillLevel, number> = {
+  "absolute-beginner": 1,
+  beginner: 3,
+  "early-intermediate": 7,
+  intermediate: 11,
+  advanced: 15,
+};
+
+interface GuitarAIState {
+  profile: OnboardingProfile;
+  progress: UserProgress;
+  setProfile: (p: Partial<OnboardingProfile>) => void;
+  completeOnboarding: (p: OnboardingProfile) => void;
+  resetOnboarding: () => void;
+  logPractice: (minutes: number, focus: string) => void;
+  addChordReps: (chordId: string, reps: number) => void;
+  completeGeneratedLesson: (path: PathKey, lessonId: string, level: number, lessonsPerLevel: number) => void;
+  addSongLearned: (title: string) => void;
+  addFixReport: (report: FixMyPlayingReport) => void;
+  addGameScore: (score: GameScore) => void;
+  setWeakAreas: (areas: string[]) => void;
+  setLevel: (level: UserProgress["level"]) => void;
 }
 
-export const useApp = create<AppState>()(
+function isConsecutiveDay(lastIso: string | null): "same" | "next" | "gap" {
+  if (!lastIso) return "gap";
+  const last = new Date(lastIso);
+  const today = new Date();
+  const oneDay = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round(
+    (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) -
+      Date.UTC(last.getFullYear(), last.getMonth(), last.getDate())) /
+      oneDay
+  );
+  if (diffDays === 0) return "same";
+  if (diffDays === 1) return "next";
+  return "gap";
+}
+
+export const useGuitarAI = create<GuitarAIState>()(
   persist(
-    (set) => ({
-      hydrated: false,
-      profile: null,
-      posts: [],
-      reels: [],
-      myStory: [],
-      chats: {},
+    (set, get) => ({
+      profile: defaultProfile,
+      progress: defaultProgress,
 
-      markHydrated: () => set({ hydrated: true }),
+      setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
 
-      setProfile: (profile) =>
-        set((state) => ({
-          profile,
-          posts: state.posts.length ? state.posts : buildSeedFeed(),
-          reels: state.reels.length ? state.reels : buildSeedReels(),
+      completeOnboarding: (p) =>
+        set((s) => {
+          const startLevel = STARTING_LEVEL_BY_SKILL[p.skillLevel];
+          return {
+            profile: { ...p, completedAt: new Date().toISOString() },
+            progress: {
+              ...s.progress,
+              level: p.skillLevel,
+              paths: {
+                chords: freshPathProgress(startLevel),
+                notes: freshPathProgress(startLevel),
+                tabs: freshPathProgress(startLevel),
+              },
+            },
+          };
+        }),
+
+      resetOnboarding: () => set({ profile: defaultProfile, progress: defaultProgress }),
+
+      logPractice: (minutes, focus) =>
+        set((s) => {
+          const rel = isConsecutiveDay(s.progress.lastPracticeDate);
+          const streakDays = rel === "same" ? s.progress.streakDays : rel === "next" ? s.progress.streakDays + 1 : 1;
+          const record: PracticeSessionRecord = { date: new Date().toISOString(), minutes, focus };
+          return {
+            progress: {
+              ...s.progress,
+              streakDays,
+              lastPracticeDate: new Date().toISOString(),
+              totalPracticeMinutes: s.progress.totalPracticeMinutes + minutes,
+              sessionHistory: [record, ...s.progress.sessionHistory].slice(0, 200),
+            },
+          };
+        }),
+
+      addChordReps: (chordId, reps) =>
+        set((s) => {
+          const nextReps = { ...s.progress.chordReps, [chordId]: (s.progress.chordReps[chordId] ?? 0) + reps };
+          const mastered = new Set(s.progress.chordsMastered);
+          if (nextReps[chordId] >= 30) mastered.add(chordId);
+          return { progress: { ...s.progress, chordReps: nextReps, chordsMastered: Array.from(mastered) } };
+        }),
+
+      completeGeneratedLesson: (path, lessonId, level, lessonsPerLevel) =>
+        set((s) => {
+          const current = s.progress.paths[path];
+          const completedLessonIds = Array.from(new Set([...current.completedLessonIds, lessonId]));
+          const levelTag = `-L${String(level).padStart(2, "0")}-`;
+          const doneInLevel = completedLessonIds.filter((id) => id.includes(levelTag)).length;
+          const readyToAdvance = doneInLevel >= Math.ceil(lessonsPerLevel * 0.6);
+          const unlockedLevel = readyToAdvance ? Math.max(current.unlockedLevel, Math.min(20, level + 1)) : current.unlockedLevel;
+          return {
+            progress: {
+              ...s.progress,
+              paths: { ...s.progress.paths, [path]: { completedLessonIds, unlockedLevel } },
+            },
+          };
+        }),
+
+      addSongLearned: (title) =>
+        set((s) => ({
+          progress: { ...s.progress, songsLearned: Array.from(new Set([...s.progress.songsLearned, title])) },
         })),
 
-      resetEverything: () =>
-        set({ profile: null, posts: [], reels: [], myStory: [], chats: {} }),
-
-      addStoryItem: (item) =>
-        set((state) => ({ myStory: [...state.myStory, item] })),
-
-      removeStoryItem: (id) =>
-        set((state) => ({ myStory: state.myStory.filter((s) => s.id !== id) })),
-
-      toggleLike: (postId) =>
-        set((state) => ({
-          posts: state.posts.map((p) =>
-            p.id === postId
-              ? {
-                  ...p,
-                  likedBy: p.likedBy.includes(ME)
-                    ? p.likedBy.filter((u) => u !== ME)
-                    : [...p.likedBy, ME],
-                }
-              : p
-          ),
-        })),
-
-      addComment: (postId, comment) =>
-        set((state) => ({
-          posts: state.posts.map((p) =>
-            p.id === postId ? { ...p, comments: [...p.comments, comment] } : p
-          ),
-        })),
-
-      addPost: (post) => set((state) => ({ posts: [post, ...state.posts] })),
-
-      deletePost: (postId) =>
-        set((state) => ({ posts: state.posts.filter((p) => p.id !== postId) })),
-
-      toggleReelLike: (reelId) =>
-        set((state) => ({
-          reels: state.reels.map((r) =>
-            r.id === reelId
-              ? {
-                  ...r,
-                  likedBy: r.likedBy.includes(ME)
-                    ? r.likedBy.filter((u) => u !== ME)
-                    : [...r.likedBy, ME],
-                }
-              : r
-          ),
-        })),
-
-      addReelComment: (reelId, comment) =>
-        set((state) => ({
-          reels: state.reels.map((r) =>
-            r.id === reelId ? { ...r, comments: [...r.comments, comment] } : r
-          ),
-        })),
-
-      addReel: (reel) => set((state) => ({ reels: [reel, ...state.reels] })),
-
-      deleteReel: (reelId) =>
-        set((state) => ({ reels: state.reels.filter((r) => r.id !== reelId) })),
-
-      setReelVideo: (reelId, mediaId, duration) =>
-        set((state) => ({
-          reels: state.reels.map((r) =>
-            r.id === reelId
-              ? { ...r, videoMediaId: mediaId, durationSeconds: duration }
-              : r
-          ),
-        })),
-
-      appendChat: (personaId, message) =>
-        set((state) => ({
-          chats: {
-            ...state.chats,
-            [personaId]: [...(state.chats[personaId] ?? []), message],
+      addFixReport: (report) =>
+        set((s) => ({
+          progress: {
+            ...s.progress,
+            fixReports: [report, ...s.progress.fixReports].slice(0, 50),
+            weakAreas: Array.from(
+              new Set([...report.issues.slice(0, 3).map((i) => i.label), ...s.progress.weakAreas])
+            ).slice(0, 8),
           },
         })),
+
+      addGameScore: (score) =>
+        set((s) => ({ progress: { ...s.progress, gameScores: [score, ...s.progress.gameScores].slice(0, 100) } })),
+
+      setWeakAreas: (areas) => set((s) => ({ progress: { ...s.progress, weakAreas: areas } })),
+
+      setLevel: (level) => set((s) => ({ progress: { ...s.progress, level } })),
     }),
     {
-      name: "instaai-vault",
-      storage: createJSONStorage(() => encryptedStorage),
-      // Nothing loads until a password unlocks the vault.
-      skipHydration: true,
-      partialize: (state) => ({
-        profile: state.profile,
-        posts: state.posts,
-        reels: state.reels,
-        myStory: state.myStory,
-        chats: state.chats,
-      }),
-      onRehydrateStorage: () => (state) => {
-        // Backfills reels for browsers that onboarded before Reels existed.
-        if (state && state.profile && state.reels.length === 0) {
-          state.reels = buildSeedReels();
+      name: "guitar-ai-storage",
+      version: 1,
+      migrate: (persisted) => {
+        const state = persisted as { profile?: OnboardingProfile; progress?: Partial<UserProgress> };
+        if (state?.progress && !state.progress.paths) {
+          state.progress.paths = { chords: freshPathProgress(), notes: freshPathProgress(), tabs: freshPathProgress() };
         }
-        state?.markHydrated();
+        return state as { profile: OnboardingProfile; progress: UserProgress };
       },
     }
   )
 );
 
-export const MY_ID = ME;
-export { uid };
+export function usePersonalRecord(): GameScore | null {
+  const scores = useGuitarAI((s) => s.progress.gameScores);
+  if (scores.length === 0) return null;
+  return scores.reduce((best, cur) => (cur.accuracy > best.accuracy ? cur : best), scores[0]);
+}
