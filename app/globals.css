@@ -3,39 +3,60 @@
 @tailwind utilities;
 
 :root {
-  --ig-gradient: linear-gradient(
-    45deg,
-    #f09433 0%,
-    #e6683c 25%,
-    #dc2743 50%,
-    #cc2366 75%,
-    #bc1888 100%
-  );
+  --paper: #faf8f4;
+  --paper-raised: #ffffff;
+  --ink: #2a2622;
+  --ink-soft: #5c564d;
+  --ink-faint: #a19a8c;
+  --border: #e7e1d4;
+  --accent: #b5602c;
+  --accent-soft: #f3e3d1;
+  --accent-ink: #fffaf3;
 }
 
-html,
-body {
+:root[data-theme="dark"] {
+  --paper: #1a1917;
+  --paper-raised: #232220;
+  --ink: #ece7de;
+  --ink-soft: #b6afa2;
+  --ink-faint: #6f6a60;
+  --border: #38352f;
+  --accent: #dd9457;
+  --accent-soft: #3a2d1e;
+  --accent-ink: #1a1917;
+}
+
+:root[data-theme="sepia"] {
+  --paper: #f1e7d0;
+  --paper-raised: #f8f1de;
+  --ink: #3b2f1f;
+  --ink-soft: #6f5f44;
+  --ink-faint: #a08e68;
+  --border: #ddcda4;
+  --accent: #935e2c;
+  --accent-soft: #e6d5ab;
+  --accent-ink: #f8f1de;
+}
+
+html {
   -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 body {
-  background: #fafafa;
-  color: #262626;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.ig-gradient {
-  background: var(--ig-gradient);
-}
-
-.ig-logo {
-  font-family: "Grand Hotel", "Snell Roundhand", "Brush Script MT", cursive;
-  font-weight: 400;
-}
-
-.story-ring {
-  background: var(--ig-gradient);
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -46,134 +67,23 @@ body {
   scrollbar-width: none;
 }
 
-@keyframes dot-bounce {
+@keyframes caret-blink {
   0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  30% {
-    transform: translateY(-4px);
+  49% {
     opacity: 1;
   }
-}
-
-.typing-dot {
-  animation: dot-bounce 1.2s infinite;
-}
-.typing-dot:nth-child(2) {
-  animation-delay: 0.15s;
-}
-.typing-dot:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes ken-burns-in {
-  0% {
-    transform: scale(1) translate(0, 0);
-  }
+  50%,
   100% {
-    transform: scale(1.18) translate(-2%, -2%);
-  }
-}
-@keyframes ken-burns-out {
-  0% {
-    transform: scale(1.18) translate(2%, 1%);
-  }
-  100% {
-    transform: scale(1) translate(0, 0);
-  }
-}
-.reel-ken-in {
-  animation: ken-burns-in 7s ease-in-out forwards;
-}
-.reel-ken-out {
-  animation: ken-burns-out 7s ease-in-out forwards;
-}
-
-/* Per-frame entry transitions used by reel templates. */
-@keyframes reel-fade-in {
-  from {
     opacity: 0;
   }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes reel-slide-in {
-  from {
-    transform: translateX(14%);
-    opacity: 0.2;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-@keyframes reel-flash-in {
-  0% {
-    filter: brightness(3);
-    opacity: 0.2;
-  }
-  18% {
-    filter: brightness(1);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1.06);
-  }
-}
-@keyframes reel-whip-in {
-  0% {
-    transform: translateX(30%) skewX(-9deg);
-    opacity: 0;
-  }
-  55% {
-    transform: translateX(0) skewX(0);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1.05);
-  }
-}
-@keyframes reel-blur-in {
-  0% {
-    filter: blur(14px);
-    opacity: 0.3;
-  }
-  45% {
-    filter: blur(0);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1.05);
-  }
 }
 
-.reel-tr-fade {
-  animation: reel-fade-in 0.5s ease forwards;
+.manuscript {
+  font-family: var(--font-serif), Georgia, serif;
 }
-.reel-tr-slide {
-  animation: reel-slide-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.manuscript.font-ui-sans {
+  font-family: var(--font-sans), sans-serif;
 }
-.reel-tr-flash {
-  animation: reel-flash-in 2.6s ease-out forwards;
-}
-.reel-tr-whip {
-  animation: reel-whip-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-.reel-tr-blur {
-  animation: reel-blur-in 2.8s ease-out forwards;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reel-ken-in,
-  .reel-ken-out,
-  .reel-tr-slide,
-  .reel-tr-flash,
-  .reel-tr-whip,
-  .reel-tr-blur {
-    animation: reel-fade-in 0.4s ease forwards;
-  }
+.manuscript.font-ui-mono {
+  font-family: var(--font-mono), monospace;
 }
