@@ -9,6 +9,8 @@ import { timeAgo } from "@/lib/time";
 import ProgressRing from "@/components/ProgressRing";
 import NewBookModal from "@/components/NewBookModal";
 import SettingsModal from "@/components/SettingsModal";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { Book } from "@/lib/types";
 
 export default function Dashboard() {
   const hydrated = useStore((s) => s.hydrated);
@@ -18,6 +20,7 @@ export default function Dashboard() {
   const deleteBook = useStore((s) => s.deleteBook);
   const [showNewBook, setShowNewBook] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Book | null>(null);
 
   const todayWords = history[dateKey()] ?? 0;
   const streak = useMemo(() => computeStreak(history, dailyGoal), [history, dailyGoal]);
@@ -93,16 +96,20 @@ export default function Dashboard() {
           </button>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {books.map((book) => {
+            {books.map((book, i) => {
               const words = bookWords(book);
               return (
-                <div key={book.id} className="group relative">
+                <div
+                  key={book.id}
+                  className="group relative animate-fade-in"
+                  style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+                >
                   <Link
                     href={`/book/${book.id}`}
                     className="block h-full rounded-2xl border border-border bg-paper-raised p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-soft"
                   >
                     <div className="mb-3 h-1.5 w-10 rounded-full" style={{ background: book.color }} />
-                    <h3 className="line-clamp-1 font-serif text-lg text-ink">{book.title}</h3>
+                    <h3 className="line-clamp-1 pr-6 font-serif text-lg text-ink">{book.title}</h3>
                     {book.genre && (
                       <span className="mt-1 inline-block text-xs text-ink-faint">{book.genre}</span>
                     )}
@@ -117,10 +124,10 @@ export default function Dashboard() {
                   <button
                     onClick={(e) => {
                       e.preventDefault();
-                      if (confirm(`Delete "${book.title}"? This can't be undone.`)) deleteBook(book.id);
+                      setPendingDelete(book);
                     }}
                     aria-label={`Delete ${book.title}`}
-                    className="absolute right-3 top-3 rounded-full bg-paper-raised/90 p-1.5 text-ink-faint opacity-0 shadow-card transition hover:text-red-500 group-hover:opacity-100"
+                    className="absolute right-3 top-3 rounded-full bg-paper-raised/90 p-1.5 text-ink-faint/60 shadow-card transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -140,6 +147,17 @@ export default function Dashboard() {
 
       {showNewBook && <NewBookModal onClose={() => setShowNewBook(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete "${pendingDelete.title}"?`}
+          description="This permanently deletes the book and everything in it. This can't be undone."
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            deleteBook(pendingDelete.id);
+            setPendingDelete(null);
+          }}
+        />
+      )}
     </div>
   );
 }

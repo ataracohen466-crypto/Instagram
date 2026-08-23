@@ -44,6 +44,15 @@ export default function BookWorkspace({ book }: { book: Book }) {
 
   useEffect(() => setTitleDraft(book.title), [book.title]);
 
+  useEffect(() => {
+    if (!focusMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFocusMode(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focusMode]);
+
   const chapter = book.chapters.find((c) => c.id === selectedChapterId) ?? null;
   const scene = chapter?.scenes.find((s) => s.id === selectedSceneId) ?? null;
 
@@ -188,18 +197,29 @@ export default function BookWorkspace({ book }: { book: Book }) {
         </main>
 
         {!focusMode && rightPanel && (
-          <aside className="hidden w-80 shrink-0 border-l border-border lg:block">
-            {rightPanel === "codex" && <CodexPanel book={book} />}
-            {rightPanel === "assistant" && scene && (
-              <AssistantPanel
-                book={book}
-                scene={scene}
-                chapterTitle={chapter?.title ?? ""}
-                selection={selection}
-                onInsert={(text, mode) => editorRef.current?.insertText(text, mode)}
-              />
-            )}
-          </aside>
+          <>
+            <div
+              className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+              onClick={() => setRightPanel(null)}
+            />
+            <aside className="fixed inset-x-0 bottom-0 z-40 h-[75vh] rounded-t-2xl border-t border-border bg-paper shadow-soft animate-fade-in lg:static lg:z-auto lg:h-auto lg:w-80 lg:shrink-0 lg:animate-none lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-none">
+              {rightPanel === "codex" && <CodexPanel book={book} />}
+              {rightPanel === "assistant" &&
+                (scene ? (
+                  <AssistantPanel
+                    book={book}
+                    scene={scene}
+                    chapterTitle={chapter?.title ?? ""}
+                    selection={selection}
+                    onInsert={(text, mode) => editorRef.current?.insertText(text, mode)}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center p-6 text-center text-sm text-ink-faint">
+                    Pick a scene to write in before asking for help with it.
+                  </div>
+                ))}
+            </aside>
+          </>
         )}
       </div>
 
@@ -239,12 +259,12 @@ function PanelToggle({
     <button
       onClick={onClick}
       aria-label={label}
-      className={`hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition lg:flex ${
+      className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm transition sm:px-3 ${
         active ? "bg-accent-soft text-ink" : "text-ink-soft hover:bg-accent-soft hover:text-ink"
       }`}
     >
       {icon}
-      {label}
+      <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }

@@ -23,5 +23,8 @@ export default function BookPage() {
     );
   }
 
-  return <BookWorkspace book={book} />;
+  // Keyed on the book id so navigating straight from one book to another
+  // (client-side, no full page load) remounts the workspace instead of
+  // carrying over the previous book's selected chapter/scene.
+  return <BookWorkspace key={book.id} book={book} />;
 }

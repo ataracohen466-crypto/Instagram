@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Search, Trash2, User, MapPin, Package, StickyNote } from "lucide-react";
-import { Book, CodexType } from "@/lib/types";
+import { Book, CodexEntry, CodexType } from "@/lib/types";
 import { useStore } from "@/lib/store";
+import ConfirmDialog from "./ConfirmDialog";
 
 const TYPE_META: Record<CodexType, { label: string; icon: React.ReactNode }> = {
   character: { label: "Characters", icon: <User size={13} /> },
@@ -20,6 +21,7 @@ export default function CodexPanel({ book }: { book: Book }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [addingType, setAddingType] = useState<CodexType | null>(null);
   const [draftName, setDraftName] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<CodexEntry | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -106,10 +108,20 @@ export default function CodexPanel({ book }: { book: Book }) {
                       <span className="truncate">{entry.name}</span>
                       <Trash2
                         size={12}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Delete ${entry.name}`}
                         className="shrink-0 text-ink-faint transition hover:text-red-500"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm(`Delete "${entry.name}"?`)) deleteCodexEntry(book.id, entry.id);
+                          setPendingDelete(entry);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setPendingDelete(entry);
+                          }
                         }}
                       />
                     </button>
@@ -131,6 +143,17 @@ export default function CodexPanel({ book }: { book: Book }) {
           </div>
         ))}
       </div>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete "${pendingDelete.name}"?`}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            deleteCodexEntry(book.id, pendingDelete.id);
+            setPendingDelete(null);
+          }}
+        />
+      )}
     </div>
   );
 }

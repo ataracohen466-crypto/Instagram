@@ -13,6 +13,7 @@ import {
 import { Book } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { sceneWords } from "@/lib/words";
+import ConfirmDialog from "./ConfirmDialog";
 
 export default function ChapterTree({
   book,
@@ -36,6 +37,11 @@ export default function ChapterTree({
 
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: "chapter"; chapterId: string; title: string }
+    | { kind: "scene"; chapterId: string; sceneId: string; title: string }
+    | null
+  >(null);
 
   return (
     <div className="flex h-full flex-col">
@@ -71,7 +77,8 @@ export default function ChapterTree({
               <div className="relative">
                 <button
                   onClick={() => setMenuFor(menuFor === chapter.id ? null : chapter.id)}
-                  className="rounded p-1 text-ink-faint opacity-0 transition hover:bg-paper-raised group-hover:opacity-100"
+                  aria-label={`${chapter.title} options`}
+                  className="rounded p-1 text-ink-faint/60 transition hover:bg-paper-raised sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                 >
                   <MoreHorizontal size={14} />
                 </button>
@@ -83,11 +90,9 @@ export default function ChapterTree({
                     onMoveDown={
                       ci < book.chapters.length - 1 ? () => reorderChapter(book.id, chapter.id, 1) : undefined
                     }
-                    onDelete={() => {
-                      if (confirm(`Delete "${chapter.title}" and all its scenes?`)) {
-                        deleteChapter(book.id, chapter.id);
-                      }
-                    }}
+                    onDelete={() =>
+                      setPendingDelete({ kind: "chapter", chapterId: chapter.id, title: chapter.title })
+                    }
                   />
                 )}
               </div>
@@ -126,7 +131,8 @@ export default function ChapterTree({
                     )}
                     <button
                       onClick={() => setMenuFor(menuFor === scene.id ? null : scene.id)}
-                      className="absolute right-7 rounded p-1 text-ink-faint opacity-0 transition hover:bg-paper-raised group-hover/scene:opacity-100"
+                      aria-label={`${scene.title} options`}
+                      className="absolute right-7 rounded p-1 text-ink-faint/60 transition hover:bg-paper-raised sm:opacity-0 sm:group-hover/scene:opacity-100 sm:group-focus-within/scene:opacity-100"
                     >
                       <MoreHorizontal size={13} />
                     </button>
@@ -140,12 +146,14 @@ export default function ChapterTree({
                             ? () => reorderScene(book.id, chapter.id, scene.id, 1)
                             : undefined
                         }
-                        onDelete={() => {
-                          if (confirm(`Delete "${scene.title}"?`)) {
-                            deleteScene(book.id, chapter.id, scene.id);
-                            if (selectedSceneId === scene.id) onSelect(chapter.id, null);
-                          }
-                        }}
+                        onDelete={() =>
+                          setPendingDelete({
+                            kind: "scene",
+                            chapterId: chapter.id,
+                            sceneId: scene.id,
+                            title: scene.title,
+                          })
+                        }
                       />
                     )}
                   </div>
@@ -173,6 +181,27 @@ export default function ChapterTree({
           <Plus size={14} /> New chapter
         </button>
       </div>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete "${pendingDelete.title}"?`}
+          description={
+            pendingDelete.kind === "chapter"
+              ? "This deletes the chapter and every scene inside it. This can't be undone."
+              : "This can't be undone."
+          }
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            if (pendingDelete.kind === "chapter") {
+              deleteChapter(book.id, pendingDelete.chapterId);
+            } else {
+              deleteScene(book.id, pendingDelete.chapterId, pendingDelete.sceneId);
+              if (selectedSceneId === pendingDelete.sceneId) onSelect(pendingDelete.chapterId, null);
+            }
+            setPendingDelete(null);
+          }}
+        />
+      )}
     </div>
   );
 }

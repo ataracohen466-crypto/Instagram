@@ -9,7 +9,7 @@ export default function Modal({
   children,
   width = "max-w-md",
 }: {
-  title: string;
+  title?: string;
   onClose: () => void;
   children: React.ReactNode;
   width?: string;
@@ -32,8 +32,8 @@ export default function Modal({
       <div
         className={`w-full ${width} animate-pop-in rounded-2xl border border-border bg-paper-raised p-5 shadow-soft`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-serif text-lg text-ink">{title}</h2>
+        <div className={`flex items-center justify-between ${title ? "mb-4" : "mb-1 justify-end"}`}>
+          {title && <h2 className="font-serif text-lg text-ink">{title}</h2>}
           <button
             onClick={onClose}
             aria-label="Close"

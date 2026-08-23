@@ -35,26 +35,53 @@ const Editor = forwardRef<EditorHandle, {
   const [title, setTitle] = useState(scene.title);
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState(scene.notes);
+  const [saved, setSaved] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRef = useRef<Partial<Pick<Scene, "title" | "content" | "notes">> | null>(null);
+  const saveTargetRef = useRef({ bookId: book.id, chapterId: chapter.id, sceneId: scene.id });
 
-  // Switching scenes: flush pending writes for the old one, load the new one.
+  const flush = () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (pendingRef.current) {
+      const { bookId, chapterId, sceneId } = saveTargetRef.current;
+      updateScene(bookId, chapterId, sceneId, pendingRef.current);
+      pendingRef.current = null;
+    }
+    setSaved(true);
+  };
+
+  // Switching scenes: the cleanup below flushes pending writes for the old
+  // scene (using the old saveTargetRef) before this body loads the new one.
   useEffect(() => {
+    saveTargetRef.current = { bookId: book.id, chapterId: chapter.id, sceneId: scene.id };
     setContent(scene.content);
     setTitle(scene.title);
     setNotes(scene.notes);
     onSelectionChange(null);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
+    return flush;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene.id]);
 
+  // Flush before the tab closes/hides so a debounce window never eats the last keystrokes.
+  useEffect(() => {
+    window.addEventListener("beforeunload", flush);
+    document.addEventListener("visibilitychange", flush);
+    return () => {
+      window.removeEventListener("beforeunload", flush);
+      document.removeEventListener("visibilitychange", flush);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const scheduleSave = (patch: Partial<Pick<Scene, "title" | "content" | "notes">>) => {
+    pendingRef.current = { ...pendingRef.current, ...patch };
+    setSaved(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      updateScene(book.id, chapter.id, scene.id, patch);
-    }, 350);
+    debounceRef.current = setTimeout(flush, 350);
   };
 
   const words = countWords(content);
@@ -123,7 +150,15 @@ const Editor = forwardRef<EditorHandle, {
       <div className="flex items-center justify-between border-t border-border bg-paper px-6 py-2 text-xs text-ink-faint">
         <div className="flex items-center gap-3">
           <span>{formatWords(words)} words</span>
-          <span className="hidden sm:inline">· {readingMinutes(words)} min read</span>
+          {words > 0 && <span className="hidden sm:inline">· {readingMinutes(words)} min read</span>}
+          <span className="hidden items-center gap-1.5 sm:flex">
+            <span
+              className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                saved ? "bg-ink-faint/40" : "animate-pulse bg-accent"
+              }`}
+            />
+            {saved ? "Saved" : "Saving…"}
+          </span>
         </div>
         {!focusMode && (
           <button
@@ -133,7 +168,7 @@ const Editor = forwardRef<EditorHandle, {
             }`}
           >
             {notesOpen ? <PenLine size={13} /> : <NotebookPen size={13} />}
-            Scene notes
+            <span className="hidden sm:inline">Scene notes</span>
           </button>
         )}
       </div>

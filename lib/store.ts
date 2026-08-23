@@ -125,8 +125,10 @@ export const useStore = create<AppState>()(
           books: s.books.map((b) => (b.id === bookId ? touch({ ...b, ...patch }) : b)),
         })),
 
-      deleteBook: (bookId) =>
-        set((s) => ({ books: s.books.filter((b) => b.id !== bookId) })),
+      deleteBook: (bookId) => {
+        set((s) => ({ books: s.books.filter((b) => b.id !== bookId) }));
+        get().recordProgress();
+      },
 
       addChapter: (bookId, title) => {
         const id = uid();
@@ -152,14 +154,16 @@ export const useStore = create<AppState>()(
           ),
         })),
 
-      deleteChapter: (bookId, chapterId) =>
+      deleteChapter: (bookId, chapterId) => {
         set((s) => ({
           books: s.books.map((b) =>
             b.id !== bookId
               ? b
               : touch({ ...b, chapters: b.chapters.filter((c) => c.id !== chapterId) })
           ),
-        })),
+        }));
+        get().recordProgress();
+      },
 
       reorderChapter: (bookId, chapterId, direction) =>
         set((s) => ({
@@ -213,7 +217,7 @@ export const useStore = create<AppState>()(
         get().recordProgress();
       },
 
-      deleteScene: (bookId, chapterId, sceneId) =>
+      deleteScene: (bookId, chapterId, sceneId) => {
         set((s) => ({
           books: s.books.map((b) => {
             if (b.id !== bookId) return b;
@@ -224,7 +228,9 @@ export const useStore = create<AppState>()(
               ),
             });
           }),
-        })),
+        }));
+        get().recordProgress();
+      },
 
       reorderScene: (bookId, chapterId, sceneId, direction) =>
         set((s) => ({
