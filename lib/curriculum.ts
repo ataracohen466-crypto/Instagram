@@ -115,13 +115,21 @@ function chordArchetypeLesson(
   // rather than nonsense like Em → Em.
   const priorChord = known.find((c) => !focusChords.includes(c)) ?? (focusChords.length > 1 ? focusChords[1] : focusChords[0]);
 
+  const isNew = newChords.length > 0;
+
   switch (archetype) {
     case "Meet the Chord":
-      return {
-        title: `Learn ${focusChords.join(" & ")}`,
-        instructions: `Place ${focusChords[0]} one finger at a time — check each string rings clean before you strum. Strum once, release, and reset. Repeat ${r} times.`,
-        targetChords: [focusChords[0]],
-      };
+      return isNew
+        ? {
+            title: `Learn ${focusChords.join(" & ")}`,
+            instructions: `Place ${focusChords[0]} one finger at a time — check each string rings clean before you strum. Strum once, release, and reset. Repeat ${r} times.`,
+            targetChords: [focusChords[0]],
+          }
+        : {
+            title: `Review: ${focusChords.join(" & ")}`,
+            instructions: `Revisit ${focusChords[0]} — check your finger placement is still clean and the chord rings without buzzing. Repeat ${r} times.`,
+            targetChords: [focusChords[0]],
+          };
     case "Shape Drill":
       return {
         title: `${focusChords.join(" / ")} shape drill`,
@@ -282,17 +290,21 @@ function positionArchetypeLesson(
   const noun = path === "notes" ? "note" : "fret";
   const idx = NOTE_ARCHETYPES.indexOf(archetype) >= 0 ? NOTE_ARCHETYPES.indexOf(archetype) : TAB_ARCHETYPES.indexOf(archetype);
 
+  const isNewMaterial = newNotes.length > 0;
+
   switch (idx) {
     case 0: // Meet the Note / Read the Tab
       return {
-        title:
-          path === "notes"
+        title: isNewMaterial
+          ? path === "notes"
             ? `Learn ${focus.map(noteLabel).join(", ")}`
-            : `Read: ${STRING_NAMES[focus[0].stringIndex]} string, fret ${focus[0].fret}`,
-        instructions:
-          path === "notes"
+            : `Read: ${STRING_NAMES[focus[0].stringIndex]} string, fret ${focus[0].fret}`
+          : `Review: ${focus.map(noteLabel).join(", ")}`,
+        instructions: isNewMaterial
+          ? path === "notes"
             ? `Find and play ${focus.map((n) => `${STRING_NAMES[n.stringIndex]} string fret ${n.fret} (${noteLabel(n)})`).join("; ")} on your guitar. Play each ${r} times, checking pitch against the staff position.`
-            : `Play ${STRING_NAMES[focus[0].stringIndex]} string, fret ${focus[0].fret}. Repeat ${r} times, matching the tab number to the correct fret every time.`,
+            : `Play ${STRING_NAMES[focus[0].stringIndex]} string, fret ${focus[0].fret}. Repeat ${r} times, matching the tab number to the correct fret every time.`
+          : `Revisit ${focus.map(noteLabel).join(", ")} — check your pitch is still accurate. Play each ${r} times.`,
         targetNotes: focus,
       };
     case 1: // Find It on the Staff / Single-String Run
