@@ -14,13 +14,32 @@ import { DB_NAME, DB_VERSION, getActive } from "./vault";
 
 const MEDIA = "media";
 
-/** Refuses anything a phone would struggle to hold in memory to decrypt. */
-export const MAX_CLIP_BYTES = 60 * 1024 * 1024;
+/**
+ * Long clips are encrypted a slice at a time. Whole-file encryption needs the
+ * plaintext and the ciphertext in memory at once, so a 500MB video would peak
+ * over a gigabyte and take a phone down with it. Chunking holds one slice at
+ * a time instead, which is what makes ten-minute uploads survivable.
+ */
+const CHUNK_BYTES = 4 * 1024 * 1024;
+
+/** Ten minutes, the longest clip the app accepts. */
+export const MAX_CLIP_SECONDS = 600;
+
+/** Enough headroom for ten minutes of typical phone video. */
+export const MAX_CLIP_BYTES = 512 * 1024 * 1024;
+
+interface EncryptedChunk {
+  iv: string;
+  data: ArrayBuffer;
+}
 
 export interface MediaRecord {
   id: string;
-  iv: string;
-  data: ArrayBuffer;
+  /** Single-shot payload, written before chunking existed. Still readable. */
+  iv?: string;
+  data?: ArrayBuffer;
+  /** Chunked payload — how everything is written now. */
+  chunks?: EncryptedChunk[];
   type: string;
   kind: "video" | "image" | "audio";
   duration: number;
@@ -118,23 +137,39 @@ export async function putMedia(
   const active = getActive();
   if (!active) throw new Error("Log in before saving media.");
   if (blob.size > MAX_CLIP_BYTES)
-    throw new Error("That clip is too large — keep it under 60MB.");
+    throw new Error(
+      `That clip is too large — keep it under ${Math.round(
+        MAX_CLIP_BYTES / (1024 * 1024)
+      )}MB.`
+    );
 
   const duration =
     kind === "video" || kind === "audio" ? await probeDuration(blob) : 0;
-  const iv = randomBytes(12);
-  const plain = await blob.arrayBuffer();
 
-  const cipher = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as unknown as BufferSource },
-    active.key,
-    plain
-  );
+  // A zero here means the duration couldn't be read, not that it's short.
+  if (duration > MAX_CLIP_SECONDS)
+    throw new Error(
+      `That clip is ${Math.round(duration / 60)} minutes — keep it under ${
+        MAX_CLIP_SECONDS / 60
+      }.`
+    );
+
+  // One slice at a time, so peak memory is a chunk rather than the whole file.
+  const chunks: EncryptedChunk[] = [];
+  for (let offset = 0; offset < blob.size; offset += CHUNK_BYTES) {
+    const slice = blob.slice(offset, Math.min(offset + CHUNK_BYTES, blob.size));
+    const iv = randomBytes(12);
+    const cipher = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: iv as unknown as BufferSource },
+      active.key,
+      await slice.arrayBuffer()
+    );
+    chunks.push({ iv: toBase64(iv), data: cipher });
+  }
 
   const record: MediaRecord = {
     id: mediaId(),
-    iv: toBase64(iv),
-    data: cipher,
+    chunks,
     type:
       blob.type ||
       (kind === "video"
@@ -164,12 +199,40 @@ export async function getMediaUrl(id: string): Promise<string | null> {
   if (!record) return null;
 
   try {
-    const plain = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: fromBase64(record.iv) as unknown as BufferSource },
-      active.key,
-      record.data
-    );
-    const url = URL.createObjectURL(new Blob([plain], { type: record.type }));
+    let blob: Blob;
+
+    if (record.chunks) {
+      // Decrypted slices go straight into a Blob, which the browser can spill
+      // to disk — never assembling the whole clip in one buffer.
+      const parts: ArrayBuffer[] = [];
+      for (const chunk of record.chunks) {
+        parts.push(
+          await crypto.subtle.decrypt(
+            {
+              name: "AES-GCM",
+              iv: fromBase64(chunk.iv) as unknown as BufferSource,
+            },
+            active.key,
+            chunk.data
+          )
+        );
+      }
+      blob = new Blob(parts, { type: record.type });
+    } else if (record.data && record.iv) {
+      const plain = await crypto.subtle.decrypt(
+        {
+          name: "AES-GCM",
+          iv: fromBase64(record.iv) as unknown as BufferSource,
+        },
+        active.key,
+        record.data
+      );
+      blob = new Blob([plain], { type: record.type });
+    } else {
+      return null;
+    }
+
+    const url = URL.createObjectURL(blob);
     urlCache.set(id, url);
     return url;
   } catch {

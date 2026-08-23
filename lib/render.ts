@@ -40,6 +40,37 @@ export function renderSupported(): boolean {
   );
 }
 
+/**
+ * Largest source file whose audio is decoded for the export. Decoding needs
+ * the whole compressed file plus its PCM in memory at once, so beyond this a
+ * clip contributes video only.
+ */
+const MAX_AUDIO_DECODE_BYTES = 96 * 1024 * 1024;
+
+/**
+ * Copies just the played window out of a decoded track.
+ *
+ * Returns null when the window falls past the end of the audio, which happens
+ * whenever a clip is held on screen longer than its own sound.
+ */
+function sliceBuffer(
+  ctx: AudioContext,
+  buffer: AudioBuffer,
+  start: number,
+  length: number
+): AudioBuffer | null {
+  const rate = buffer.sampleRate;
+  const from = Math.min(Math.max(Math.floor(start * rate), 0), buffer.length);
+  const count = Math.min(Math.ceil(length * rate), buffer.length - from);
+  if (count <= 0) return null;
+
+  const out = ctx.createBuffer(buffer.numberOfChannels, count, rate);
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    out.getChannelData(ch).set(buffer.getChannelData(ch).subarray(from, from + count));
+  }
+  return out;
+}
+
 /** Never let a stalled element hang the whole export. */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | void> {
   return Promise.race([
@@ -303,12 +334,10 @@ export async function renderReel({
    * way every clip can stay muted (always autoplayable) and the sound still
    * lands in the export at the right moment.
    */
-  const schedule: {
-    buffer: AudioBuffer;
-    at: number;
-    length: number;
-    trimStart: number;
-  }[] = [];
+  // Each entry holds only the window the reel actually plays. Keeping whole
+  // decoded tracks here would retain minutes of PCM per clip — around 230MB
+  // for ten minutes — and several long clips would exhaust memory.
+  const schedule: { buffer: AudioBuffer; at: number }[] = [];
   let music: AudioBuffer | null = null;
 
   if (audioCtx && audioDest && musicMediaId) {
@@ -329,14 +358,21 @@ export async function renderReel({
       const seconds = clip.frame.seconds;
       if (clip.video && clip.url) {
         try {
-          const bytes = await (await fetch(clip.url)).arrayBuffer();
-          const buffer = await audioCtx.decodeAudioData(bytes);
-          schedule.push({
-            buffer,
-            at: offset,
-            length: seconds,
-            trimStart: clip.frame.trimStart ?? 0,
-          });
+          const file = await (await fetch(clip.url)).blob();
+          // decodeAudioData needs the whole compressed file in memory, and
+          // there's no partial-decode API. Past this size the spike is more
+          // likely to kill the export than the missing audio is to be missed,
+          // so the clip renders silent instead.
+          if (file.size <= MAX_AUDIO_DECODE_BYTES) {
+            const whole = await audioCtx.decodeAudioData(await file.arrayBuffer());
+            const window = sliceBuffer(
+              audioCtx,
+              whole,
+              clip.frame.trimStart ?? 0,
+              seconds
+            );
+            if (window) schedule.push({ buffer: window, at: offset });
+          }
         } catch {
           /* silent clip — image, or a video with no decodable audio track */
         }
@@ -381,9 +417,8 @@ export async function renderReel({
       const node = audioCtx.createBufferSource();
       node.buffer = item.buffer;
       node.connect(clipGain);
-      // Start at the same point the video was trimmed to, and stop with it.
-      const available = Math.max(item.buffer.duration - item.trimStart, 0);
-      node.start(t0 + item.at, item.trimStart, Math.min(item.length, available));
+      // Already trimmed to the played window, so this plays it whole.
+      node.start(t0 + item.at);
     }
 
     if (music) {
