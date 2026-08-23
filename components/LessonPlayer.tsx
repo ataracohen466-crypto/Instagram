@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Volume2, Mic, Square, CheckCircle2 } from "lucide-react";
+import { Volume2, Mic, Square, CheckCircle2, Film } from "lucide-react";
 import type { GeneratedLesson, PathKey } from "@/lib/curriculum";
 import ChordDiagram from "@/components/ChordDiagram";
 import NoteStaff from "@/components/NoteStaff";
 import TabViewer from "@/components/TabViewer";
+import LessonDemo from "@/components/LessonDemo";
 import { detectPitch } from "@/lib/audio/pitch";
 import { computeChroma, matchChord } from "@/lib/audio/chroma";
 import { soundingFrequency, tabAsciiFromNotes } from "@/lib/notation";
@@ -35,6 +36,7 @@ export default function LessonPlayer({
   const uniqueNoteTargets = dedupeNotes(lesson.targetNotes ?? []);
   const checklistLength = path === "chords" ? uniqueChordTargets.length : uniqueNoteTargets.length;
 
+  const [phase, setPhase] = useState<"video" | "practice">(completed ? "practice" : "video");
   const [cursor, setCursor] = useState(0);
   const [listening, setListening] = useState(false);
   const [feedback, setFeedback] = useState("Press start, then play each item in order.");
@@ -138,6 +140,20 @@ export default function LessonPlayer({
   const tabAscii =
     path === "tabs" && lesson.targetNotes?.length ? tabAsciiFromNotes(lesson.targetNotes.map((n) => ({ stringIndex: n.stringIndex, fret: n.fret }))) : null;
 
+  if (phase === "video") {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-gold-400">{lesson.archetype}</p>
+            <h4 className="font-display text-base font-semibold text-ink-100">{lesson.title}</h4>
+          </div>
+        </div>
+        <LessonDemo lesson={lesson} path={path} onStartPractice={() => setPhase("practice")} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 rounded-xl border border-ink-700 bg-ink-900/60 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -145,9 +161,14 @@ export default function LessonPlayer({
           <p className="text-xs font-medium uppercase tracking-wide text-gold-400">{lesson.archetype}</p>
           <h4 className="font-display text-base font-semibold text-ink-100">{lesson.title}</h4>
         </div>
-        <button className="btn-secondary shrink-0 !px-3 !py-2" onClick={() => narrate(lesson.instructions)} title="Hear it from your AI teacher">
-          <Volume2 size={16} />
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button className="btn-secondary !px-3 !py-2" onClick={() => setPhase("video")} title="Watch the demo again">
+            <Film size={16} />
+          </button>
+          <button className="btn-secondary !px-3 !py-2" onClick={() => narrate(lesson.instructions)} title="Hear it from your AI teacher">
+            <Volume2 size={16} />
+          </button>
+        </div>
       </div>
 
       <p className="text-sm text-ink-300">{lesson.instructions}</p>
