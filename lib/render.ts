@@ -283,6 +283,10 @@ export interface RenderOptions {
   musicVolume?: number;
   /** Seconds into the track where playback starts — picks which part plays. */
   musicStart?: number;
+  /** Narration, laid over everything from the reel's first frame. */
+  voiceMediaId?: string;
+  /** 0-1. Music ducks hard under this so the narration stays intelligible. */
+  voiceVolume?: number;
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;
 }
@@ -300,6 +304,8 @@ export async function renderReel({
   musicMediaId,
   musicVolume = 0.65,
   musicStart = 0,
+  voiceMediaId,
+  voiceVolume = 1,
   onProgress,
   signal,
 }: RenderOptions): Promise<RenderResult> {
@@ -339,6 +345,19 @@ export async function renderReel({
   // for ten minutes — and several long clips would exhaust memory.
   const schedule: { buffer: AudioBuffer; at: number }[] = [];
   let music: AudioBuffer | null = null;
+  let voice: AudioBuffer | null = null;
+
+  if (audioCtx && audioDest && voiceMediaId) {
+    try {
+      const url = await getMediaUrl(voiceMediaId);
+      if (url) {
+        const bytes = await (await fetch(url)).arrayBuffer();
+        voice = await audioCtx.decodeAudioData(bytes);
+      }
+    } catch {
+      /* unreadable narration — the reel still renders without it */
+    }
+  }
 
   if (audioCtx && audioDest && musicMediaId) {
     try {
@@ -384,7 +403,7 @@ export async function renderReel({
   const stream = canvas.captureStream(30);
   // Only attach audio when a clip actually has some: an always-silent track
   // can stall the encoder and yield an empty file.
-  if ((schedule.length > 0 || music) && audioDest) {
+  if ((schedule.length > 0 || music || voice) && audioDest) {
     if (audioCtx?.state === "suspended") await audioCtx.resume();
     audioDest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
   }
@@ -404,13 +423,13 @@ export async function renderReel({
 
   recorder.start(200);
 
-  if ((schedule.length > 0 || music) && audioCtx && audioDest) {
+  if ((schedule.length > 0 || music || voice) && audioCtx && audioDest) {
     const t0 = audioCtx.currentTime + 0.05;
     const totalSeconds = totalMs / 1000;
 
     // Clip audio ducks under the music so a backing track stays audible.
     const clipGain = audioCtx.createGain();
-    clipGain.gain.value = music ? 1 - musicVolume * 0.7 : 1;
+    clipGain.gain.value = voice ? 0.25 : music ? 1 - musicVolume * 0.7 : 1;
     clipGain.connect(audioDest);
 
     for (const item of schedule) {
@@ -421,9 +440,22 @@ export async function renderReel({
       node.start(t0 + item.at);
     }
 
+    if (voice) {
+      const voiceGain = audioCtx.createGain();
+      voiceGain.gain.value = voiceVolume;
+      voiceGain.connect(audioDest);
+
+      const node = audioCtx.createBufferSource();
+      node.buffer = voice;
+      node.connect(voiceGain);
+      // Starts with the reel and runs as long as it has, never looping.
+      node.start(t0, 0, Math.min(voice.duration, totalSeconds));
+    }
+
     if (music) {
       const musicGain = audioCtx.createGain();
-      musicGain.gain.value = musicVolume;
+      // Narration is the point when it's there, so the bed drops right down.
+      musicGain.gain.value = voice ? Math.min(musicVolume, 0.18) : musicVolume;
       musicGain.connect(audioDest);
 
       const node = audioCtx.createBufferSource();
@@ -441,7 +473,7 @@ export async function renderReel({
 
       // Fade the last second so it doesn't cut off abruptly.
       const fadeAt = t0 + Math.max(totalSeconds - 1, 0);
-      musicGain.gain.setValueAtTime(musicVolume, fadeAt);
+      musicGain.gain.setValueAtTime(musicGain.gain.value, fadeAt);
       musicGain.gain.linearRampToValueAtTime(0.0001, t0 + totalSeconds);
     }
   }

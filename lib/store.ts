@@ -9,6 +9,7 @@ import { buildSeedFeed, uid } from "./seed";
 import type { Reel } from "./reels";
 import { buildSeedReels } from "./reels";
 import type { StoryItem } from "./stories";
+import type { ReelDraft } from "./drafts";
 
 interface AppState {
   hydrated: boolean;
@@ -16,10 +17,13 @@ interface AppState {
   posts: Post[];
   reels: Reel[];
   myStory: StoryItem[];
+  drafts: ReelDraft[];
   chats: Record<string, ChatMessage[]>;
   setProfile: (profile: Profile) => void;
   addStoryItem: (item: StoryItem) => void;
   removeStoryItem: (id: string) => void;
+  saveDraft: (draft: ReelDraft) => void;
+  deleteDraft: (id: string) => void;
   resetEverything: () => void;
   toggleLike: (postId: string) => void;
   addComment: (postId: string, comment: Comment) => void;
@@ -76,7 +80,7 @@ export function unbindVault(): void {
   vaultKey = null;
   // Drop decrypted clip URLs so one account's media can't leak into the next.
   clearMediaCache();
-  useApp.setState({ profile: null, posts: [], reels: [], myStory: [], chats: {} });
+  useApp.setState({ profile: null, posts: [], reels: [], myStory: [], drafts: [], chats: {} });
 }
 
 export const useApp = create<AppState>()(
@@ -87,6 +91,7 @@ export const useApp = create<AppState>()(
       posts: [],
       reels: [],
       myStory: [],
+      drafts: [],
       chats: {},
 
       markHydrated: () => set({ hydrated: true }),
@@ -99,13 +104,22 @@ export const useApp = create<AppState>()(
         })),
 
       resetEverything: () =>
-        set({ profile: null, posts: [], reels: [], myStory: [], chats: {} }),
+        set({ profile: null, posts: [], reels: [], myStory: [], drafts: [], chats: {} }),
 
       addStoryItem: (item) =>
         set((state) => ({ myStory: [...state.myStory, item] })),
 
       removeStoryItem: (id) =>
         set((state) => ({ myStory: state.myStory.filter((s) => s.id !== id) })),
+
+      // Re-saving a draft replaces it in place and floats it to the top.
+      saveDraft: (draft) =>
+        set((state) => ({
+          drafts: [draft, ...state.drafts.filter((d) => d.id !== draft.id)],
+        })),
+
+      deleteDraft: (id) =>
+        set((state) => ({ drafts: state.drafts.filter((d) => d.id !== id) })),
 
       toggleLike: (postId) =>
         set((state) => ({
@@ -186,6 +200,7 @@ export const useApp = create<AppState>()(
         posts: state.posts,
         reels: state.reels,
         myStory: state.myStory,
+        drafts: state.drafts,
         chats: state.chats,
       }),
       onRehydrateStorage: () => (state) => {

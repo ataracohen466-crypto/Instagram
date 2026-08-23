@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Search, Layers, Clock } from "lucide-react";
+import { ChevronLeft, Search, Layers, Clock, Trash2, Mic, Music2 } from "lucide-react";
+import { useApp } from "@/lib/store";
+import { filledSlots, draftLength } from "@/lib/drafts";
 import {
   TEMPLATES,
   CATEGORIES,
@@ -50,6 +52,8 @@ function TemplateCover({ template }: { template: ReelTemplate }) {
 
 export default function TemplatesPage() {
   const [category, setCategory] = useState<CategoryId | "all">("all");
+  const drafts = useApp((s) => s.drafts);
+  const deleteDraft = useApp((s) => s.deleteDraft);
   const [query, setQuery] = useState("");
 
   const results = useMemo(() => {
@@ -116,6 +120,54 @@ export default function TemplatesPage() {
       </header>
 
       <div className="mx-auto w-full max-w-[470px] px-4 pt-3">
+        {drafts.length > 0 && !query && category === "all" && (
+          <div className="mb-5">
+            <p className="text-[13px] font-semibold">Your drafts</p>
+            <div className="mt-2 space-y-2">
+              {drafts.map((d) => (
+                <div
+                  key={d.id}
+                  className="flex items-center gap-3 rounded-xl border border-ig-border p-2.5"
+                >
+                  <Link
+                    href={`/reels/edit?t=${encodeURIComponent(
+                      d.templateId
+                    )}&d=${encodeURIComponent(d.id)}`}
+                    className="min-w-0 flex-1"
+                  >
+                    <p className="truncate text-[13px] font-semibold">
+                      {d.templateName}
+                    </p>
+                    <p className="mt-0.5 flex items-center gap-2 truncate text-[11px] text-ig-muted">
+                      <span>
+                        {filledSlots(d)}/{d.frames.length} clips ·{" "}
+                        {Math.round(draftLength(d))}s
+                      </span>
+                      {d.voiceMediaId && <Mic size={11} />}
+                      {d.musicMediaId && <Music2 size={11} />}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-ig-muted">
+                      saved {new Date(d.updatedAt).toLocaleString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </Link>
+                  <button
+                    onClick={() => deleteDraft(d.id)}
+                    aria-label={`Delete draft ${d.templateName}`}
+                    className="shrink-0 p-1.5 text-ig-muted"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {results.length === 0 ? (
           <p className="py-20 text-center text-sm text-ig-muted">
             No templates match “{query}”.

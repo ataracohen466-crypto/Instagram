@@ -59,6 +59,9 @@ export default function CameraRecorder({
 
   const [facing, setFacing] = useState<"user" | "environment">("environment");
   const [canFlip, setCanFlip] = useState(false);
+  // getUserMedia takes a moment. Until it resolves there's no stream to
+  // record, and tapping the shutter would do nothing at all.
+  const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [phase, setPhase] = useState<Phase>("idle");
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -68,6 +71,7 @@ export default function CameraRecorder({
   function stopCamera() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setReady(false);
   }
 
   async function startCamera(nextFacing: "user" | "environment" = facing) {
@@ -79,6 +83,7 @@ export default function CameraRecorder({
         audio: true,
       });
       streamRef.current = stream;
+      setReady(true);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => {});
@@ -90,6 +95,7 @@ export default function CameraRecorder({
         /* device enumeration is best-effort */
       }
     } catch {
+      setReady(false);
       setError(
         "Couldn't reach the camera. Check the browser has camera permission and try again."
       );
@@ -320,8 +326,9 @@ export default function CameraRecorder({
               {phase === "idle" && (
                 <button
                   onClick={mode === "photo" ? takePhoto : startRecording}
+                  disabled={!ready}
                   aria-label={mode === "photo" ? "Take photo" : "Start recording"}
-                  className="flex h-[74px] w-[74px] items-center justify-center rounded-full border-4 border-white"
+                  className="flex h-[74px] w-[74px] items-center justify-center rounded-full border-4 border-white disabled:opacity-40"
                 >
                   <span
                     className={
@@ -371,6 +378,12 @@ export default function CameraRecorder({
                 </>
               )}
             </div>
+
+            {phase === "idle" && !ready && !error && (
+              <p className="mt-3 text-center text-[12px] text-white/70">
+                Starting camera…
+              </p>
+            )}
 
             {phase === "recording" && (
               <p className="mt-3 text-center text-[12px] text-white/70">

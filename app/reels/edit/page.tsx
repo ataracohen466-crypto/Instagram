@@ -17,6 +17,8 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
+  Mic,
+  Save,
 } from "lucide-react";
 import { getTemplate, FILTERS, FilterId, TransitionId } from "@/lib/reelTemplates";
 import { ReelFrame } from "@/lib/reels";
@@ -27,6 +29,8 @@ import { putMedia } from "@/lib/media";
 import { renderReel, renderSupported } from "@/lib/render";
 import ReelMedia from "@/components/ReelMedia";
 import CameraRecorder from "@/components/CameraRecorder";
+import VoiceOverRecorder from "@/components/VoiceOverRecorder";
+import type { ReelDraft } from "@/lib/drafts";
 import { generateCaption } from "@/lib/aiClient";
 import Photo from "@/components/Photo";
 
@@ -84,6 +88,13 @@ function Editor() {
 
   const profile = useApp((s) => s.profile);
   const addReel = useApp((s) => s.addReel);
+  const drafts = useApp((s) => s.drafts);
+  const saveDraftToVault = useApp((s) => s.saveDraft);
+  const deleteDraft = useApp((s) => s.deleteDraft);
+
+  // Reopening a draft keeps its id so saving updates it instead of forking.
+  const draftParam = searchParams.get("d");
+  const draftIdRef = useRef(draftParam ?? uid("draft"));
 
   const [frames, setFrames] = useState<ReelFrame[]>([]);
   const [filter, setFilter] = useState<FilterId>("none");
@@ -104,13 +115,40 @@ function Editor() {
   const [musicStart, setMusicStart] = useState(0);
   const [songCredit, setSongCredit] = useState("");
   const [showCamera, setShowCamera] = useState(false);
+  const [voiceId, setVoiceId] = useState<string | undefined>();
+  const [voiceVolume, setVoiceVolume] = useState(1);
+  const [voiceDuration, setVoiceDuration] = useState(0);
+  const [showVoice, setShowVoice] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   const fileInput = useRef<HTMLInputElement>(null);
   const musicInput = useRef<HTMLInputElement>(null);
 
-  // Seed editor state from the chosen template.
+  // Seed editor state: a reopened draft wins over the template's defaults.
   useEffect(() => {
     if (!template) return;
+
+    const draft = draftParam
+      ? drafts.find((d) => d.id === draftParam)
+      : undefined;
+
+    if (draft) {
+      setFrames(draft.frames);
+      setFilter(draft.filter);
+      setTransition(draft.transition);
+      setCaption(draft.caption);
+      setMusicId(draft.musicMediaId);
+      setMusicTitle(draft.musicTitle ?? "");
+      setMusicVolume(draft.musicVolume);
+      setMusicStart(draft.musicStart);
+      setMusicDuration(draft.musicDuration);
+      setSongCredit(draft.songCredit ?? "");
+      setVoiceId(draft.voiceMediaId);
+      setVoiceVolume(draft.voiceVolume);
+      setVoiceDuration(draft.voiceDuration);
+      return;
+    }
+
     setFrames(
       template.slots.map((slot, i) => ({
         seed: `${template.id}-${i}`,
@@ -121,7 +159,10 @@ function Editor() {
     setFilter(template.filter);
     setTransition(template.transition);
     setCaption(template.slots[0]?.text ? "" : "");
-  }, [template]);
+    // `drafts` is intentionally omitted: re-running on every save would
+    // clobber whatever is being edited right now.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template, draftParam]);
 
   // Preview playback.
   useEffect(() => {
@@ -208,6 +249,45 @@ function Editor() {
   async function pickClip(file: File | undefined, index: number) {
     if (!file) return;
     await applyMediaToSlot(file, file.type.startsWith("video/") ? "video" : "image", index);
+  }
+
+  function saveDraft() {
+    if (!template) return;
+    const draft: ReelDraft = {
+      id: draftIdRef.current,
+      templateId: template.id,
+      templateName: template.name,
+      frames,
+      filter,
+      transition,
+      caption,
+      musicMediaId: musicId,
+      musicTitle: musicTitle || undefined,
+      musicVolume,
+      musicStart,
+      musicDuration,
+      songCredit: songCredit.trim() || undefined,
+      voiceMediaId: voiceId,
+      voiceVolume,
+      voiceDuration,
+      updatedAt: Date.now(),
+    };
+    saveDraftToVault(draft);
+    setSavedAt(Date.now());
+  }
+
+  async function applyVoiceOver(blob: Blob) {
+    setShowVoice(false);
+    setError(null);
+    try {
+      const record = await putMedia(blob, "audio");
+      setVoiceId(record.id);
+      setVoiceDuration(record.duration || 0);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Couldn't save that voiceover."
+      );
+    }
   }
 
   async function pickMusic(file: File | undefined) {
@@ -336,6 +416,8 @@ function Editor() {
         musicMediaId: musicId,
         musicVolume,
         musicStart,
+        voiceMediaId: voiceId,
+        voiceVolume,
         onProgress: setExportPct,
       });
 
@@ -350,6 +432,8 @@ function Editor() {
       );
     }
 
+    // The draft has become a reel, so it shouldn't linger in the list.
+    deleteDraft(draftIdRef.current);
     router.push("/reels");
   }
 
@@ -372,6 +456,15 @@ function Editor() {
               {frames.length} clips · {Math.round(totalSeconds)}s
             </p>
           </div>
+          <button
+            onClick={saveDraft}
+            disabled={sharing}
+            aria-label="Save draft"
+            className="flex items-center gap-1 rounded-lg bg-[#efefef] px-2.5 py-1.5 text-[13px] font-semibold disabled:opacity-40"
+          >
+            <Save size={14} />
+            {savedAt ? "Saved" : "Draft"}
+          </button>
           <button
             onClick={share}
             disabled={filled === 0 || sharing}
@@ -782,6 +875,69 @@ function Editor() {
           </p>
         </div>
 
+        {/* Voiceover */}
+        <p className="mt-5 text-[13px] font-semibold">Voiceover</p>
+        <div className="mt-2 rounded-xl border border-ig-border p-3">
+          {voiceId ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Mic size={15} className="shrink-0 text-ig-muted" />
+                <p className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                  Narration · {voiceDuration.toFixed(1)}s
+                </p>
+                <button
+                  onClick={() => {
+                    setVoiceId(undefined);
+                    setVoiceDuration(0);
+                  }}
+                  aria-label="Remove voiceover"
+                  className="text-ig-muted"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2">
+                <span className="text-[11px] text-ig-muted">Volume</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={voiceVolume}
+                  onChange={(e) => setVoiceVolume(Number(e.target.value))}
+                  className="h-1 flex-1 accent-ig-blue"
+                />
+                <span className="w-8 text-right text-[11px] tabular-nums text-ig-muted">
+                  {Math.round(voiceVolume * 100)}%
+                </span>
+              </div>
+              <button
+                onClick={() => setShowVoice(true)}
+                className="mt-2 text-[12px] font-semibold text-ig-blue"
+              >
+                Record again
+              </button>
+              <p className="mt-1.5 text-[11px] leading-4 text-ig-muted">
+                Plays from the start of the reel. Clips and music drop right
+                down underneath it.
+              </p>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowVoice(true)}
+                className="flex items-center gap-2 text-[13px] font-semibold text-ig-blue"
+              >
+                <Mic size={15} /> Record a voiceover
+              </button>
+              <p className="mt-1.5 text-[11px] leading-4 text-ig-muted">
+                Talk over your reel. You can pause mid-take and carry on — it
+                saves as one continuous recording.
+              </p>
+            </>
+          )}
+        </div>
+
         {/* Caption */}
         <p className="mt-6 text-[13px] font-semibold">Caption</p>
         <textarea
@@ -822,6 +978,14 @@ function Editor() {
           e.target.value = "";
         }}
       />
+
+      {showVoice && (
+        <VoiceOverRecorder
+          reelSeconds={totalSeconds}
+          onClose={() => setShowVoice(false)}
+          onCapture={applyVoiceOver}
+        />
+      )}
 
       {showCamera && (
         <CameraRecorder
