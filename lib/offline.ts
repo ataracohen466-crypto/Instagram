@@ -549,3 +549,143 @@ export function offlineGradeText(
     )}.`,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Studio fallbacks — used when there's no API key. Built from the      */
+/* definitional sentences in the notes, so the output stays grammatical */
+/* rather than reconstructed from stripped fragments.                   */
+/* ------------------------------------------------------------------ */
+
+interface Defined {
+  term: string;
+  sentence: string;
+}
+
+/** Pulls "X is/are/refers to Y" sentences, which make the cleanest script. */
+export function definedTerms(text: string): Defined[] {
+  const out: Defined[] = [];
+  const seen = new Set<string>();
+  for (const s of sentences(text)) {
+    const m = s.match(
+      /^(?:The\s+|A\s+|An\s+)?([A-Za-z][A-Za-z0-9\s'-]{2,42}?)\s+(?:is|are|was|were|refers to|means)\s+.{12,}$/
+    );
+    if (!m) continue;
+    const term = m[1].trim();
+    const key = term.toLowerCase();
+    if (seen.has(key) || term.split(/\s+/).length > 5) continue;
+    seen.add(key);
+    out.push({ term: term.replace(/^\w/, (c) => c.toUpperCase()), sentence: s });
+  }
+  return out;
+}
+
+export function offlinePodcast(
+  text: string,
+  title: string
+): { speaker: "Ava" | "Ben"; text: string }[] {
+  const defs = definedTerms(text);
+  const key = keywords(text, 10);
+  const best = sentences(text);
+  const lines: { speaker: "Ava" | "Ben"; text: string }[] = [];
+  const A = (t: string) => lines.push({ speaker: "Ava", text: t });
+  const B = (t: string) => lines.push({ speaker: "Ben", text: t });
+
+  A(`Welcome back to Study Session. Today we're working through ${title}.`);
+  B(`Good one to cover. Where do we start?`);
+  A(best[0] ?? `Let's take it from the top.`);
+
+  const items = defs.length
+    ? defs
+    : key.map((k) => ({
+        term: k.term,
+        sentence: sentences(text).find((s) => s.toLowerCase().includes(k.term.toLowerCase())) ?? "",
+      }));
+
+  items.slice(0, 5).forEach((d, i) => {
+    B(
+      i === 0
+        ? `So what exactly is ${d.term}?`
+        : i === 1
+        ? `And how does ${d.term} fit in?`
+        : `What about ${d.term}?`
+    );
+    if (d.sentence) A(d.sentence);
+    if (i % 2 === 1) B(`That's the one people mix up under exam pressure.`);
+  });
+
+  B(`Give me the recap.`);
+  best.slice(0, 3).forEach((s) => A(s));
+  A(`That's the episode. Go run a quiz on it while it's fresh.`);
+  return lines;
+}
+
+export function offlineDeck(
+  text: string,
+  title: string
+): {
+  kind: "title" | "points";
+  heading: string;
+  subhead?: string;
+  bullets: string[];
+  narration: string;
+}[] {
+  const defs = definedTerms(text);
+  const key = keywords(text, 8);
+  const best = sentences(text);
+  const slides: {
+    kind: "title" | "points";
+    heading: string;
+    subhead?: string;
+    bullets: string[];
+    narration: string;
+  }[] = [];
+
+  slides.push({
+    kind: "title",
+    heading: title,
+    subhead: "Built from your notes",
+    bullets: [],
+    narration: `${title}. Here's everything worth knowing from these notes.`,
+  });
+
+  const topics = (defs.length ? defs.map((d) => d.term) : key.map((k) => k.term)).slice(0, 6);
+  if (topics.length) {
+    slides.push({
+      kind: "points",
+      heading: "What we'll cover",
+      bullets: topics,
+      narration: `We'll go through ${topics.slice(0, 4).join(", ")}.`,
+    });
+  }
+
+  (defs.length ? defs : key.map((k) => ({ term: k.term, sentence: "" })))
+    .slice(0, 6)
+    .forEach((d) => {
+      const line =
+        d.sentence || sentences(text).find((s) => s.toLowerCase().includes(d.term.toLowerCase())) || d.term;
+      slides.push({
+        kind: "points",
+        heading: d.term,
+        bullets: [line],
+        narration: line,
+      });
+    });
+
+  if (best.length) {
+    slides.push({
+      kind: "points",
+      heading: "Things you must know",
+      bullets: best.slice(0, 4),
+      narration: `The must-knows. ${best.slice(0, 2).join(" ")}`,
+    });
+  }
+
+  slides.push({
+    kind: "title",
+    heading: "That's the deck",
+    subhead: "Now go test yourself on it",
+    bullets: [],
+    narration: `That's the deck. Now go test yourself on it.`,
+  });
+  return slides;
+}

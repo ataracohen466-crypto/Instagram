@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import TopBar from "@/components/TopBar";
 import BottomNav from "@/components/BottomNav";
+import CallButton from "@/components/CallButton";
 
 export const metadata: Metadata = {
   title: "TutorAI — study, practise, pass",
@@ -27,6 +28,7 @@ export default function RootLayout({
         <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-[72px]">
           {children}
         </main>
+        <CallButton />
         <BottomNav />
       </body>
     </html>

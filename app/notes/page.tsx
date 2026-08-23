@@ -13,6 +13,7 @@ import {
   Wand2,
 } from "lucide-react";
 import SubjectPicker from "@/components/SubjectPicker";
+import StudioButtons from "@/components/StudioButtons";
 import { Card, EmptyState, PageHeader, Pill, SectionTitle } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import { runStudyThis } from "@/lib/pipeline";
@@ -149,6 +150,11 @@ function NotesInner() {
                         </>
                       )}
                     </button>
+
+                    <p className="mb-2 mt-4 section-title">
+                      Turn these notes into
+                    </p>
+                    <StudioButtons noteId={note.id} />
                   </Card>
                 ))}
               </div>

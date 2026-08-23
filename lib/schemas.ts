@@ -172,3 +172,45 @@ export const studyPlanDaySchema: Schema = objectItem(
   },
   ["date", "focus", "estimatedMinutes", "tasks"]
 );
+
+export const podcastSchema: Schema = {
+  type: "array",
+  description:
+    "The episode, in order. 18-26 lines. Alternate speakers naturally; Ava explains, Ben asks the questions a student would ask.",
+  items: objectItem(
+    {
+      speaker: { type: "string", enum: ["Ava", "Ben"] },
+      text: {
+        type: "string",
+        description:
+          "One spoken turn, 1-3 sentences. Written to be read aloud: no markdown, no bullet points, no stage directions.",
+      },
+    },
+    ["speaker", "text"]
+  ),
+};
+
+export const slidesSchema: Schema = {
+  type: "array",
+  description:
+    "8-14 slides. Open with a title slide and close with a recap slide; everything between is one idea per slide.",
+  items: objectItem(
+    {
+      kind: { type: "string", enum: ["title", "points"] },
+      heading: { type: "string", description: "Six words or fewer." },
+      subhead: { type: "string", description: "Only for title slides." },
+      bullets: {
+        type: "array",
+        description:
+          "2-5 short lines for a points slide, empty for a title slide. Each under 18 words.",
+        items: { type: "string" },
+      },
+      narration: {
+        type: "string",
+        description:
+          "What the narrator says over this slide — two or three spoken sentences that expand on the bullets rather than reading them out.",
+      },
+    },
+    ["kind", "heading", "bullets", "narration"]
+  ),
+};

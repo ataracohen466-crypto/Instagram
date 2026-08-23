@@ -20,6 +20,7 @@ import {
   Pill,
   SectionTitle,
 } from "@/components/ui";
+import StudioButtons from "@/components/StudioButtons";
 import { useStore } from "@/lib/store";
 import { ensureStudyGuide, ensureSummary } from "@/lib/pipeline";
 import * as api from "@/lib/api";
@@ -221,6 +222,15 @@ export default function NoteDetailPage() {
           </p>
         </button>
       </div>
+
+      <SectionTitle>Studio</SectionTitle>
+      <Card>
+        <p className="mb-3 text-sm text-ink-muted">
+          Listen to these notes as a two-host episode, present them as slides, or
+          watch them narrated.
+        </p>
+        <StudioButtons noteId={note.id} />
+      </Card>
 
       <SectionTitle>Study guide</SectionTitle>
       {guide ? (

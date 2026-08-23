@@ -7,6 +7,8 @@ import {
   Question,
   QuestionType,
   StudyGuide,
+  PodcastLine,
+  Slide,
   StudyPlanDay,
   SummaryLength,
   TeachBackResult,
@@ -165,8 +167,21 @@ export function tutorChat(input: {
   level?: string;
   history: ChatMessage[];
   message: string;
-  mode?: "tutor" | "homework";
+  mode?: "tutor" | "homework" | "ask";
   context?: string;
 }) {
   return post<{ reply: string; source: AiSource }>("tutor-chat", input);
+}
+
+export function makeMedia(input: {
+  kind: "podcast" | "slides";
+  text: string;
+  title: string;
+  subject?: string;
+  level?: string;
+}) {
+  return post<{ lines?: PodcastLine[]; slides?: Slide[]; source: AiSource }>(
+    "media",
+    input
+  );
 }

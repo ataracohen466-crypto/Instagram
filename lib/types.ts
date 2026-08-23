@@ -281,3 +281,40 @@ export interface TeachBackResult {
   feedback: string;
   topic: string;
 }
+
+/* ------------------------------------------------------------------ */
+/* Studio — podcasts, slide decks and narrated video built from notes   */
+/* ------------------------------------------------------------------ */
+
+export interface PodcastLine {
+  /** Two hosts so the episode sounds like a conversation, not a reading. */
+  speaker: "Ava" | "Ben";
+  text: string;
+}
+
+export interface PodcastScript {
+  id: string;
+  noteId: string;
+  subjectId: string;
+  title: string;
+  lines: PodcastLine[];
+  createdAt: number;
+}
+
+export interface Slide {
+  kind: "title" | "points";
+  heading: string;
+  subhead?: string;
+  bullets: string[];
+  /** What the narrator says over this slide in video mode. */
+  narration: string;
+}
+
+export interface SlideDeck {
+  id: string;
+  noteId: string;
+  subjectId: string;
+  title: string;
+  slides: Slide[];
+  createdAt: number;
+}

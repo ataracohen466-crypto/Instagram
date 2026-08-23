@@ -113,11 +113,26 @@ function forSpeech(text: string): string {
     .trim();
 }
 
-export function speak(text: string, onEnd?: () => void): void {
-  if (!speechOutputSupported()) return;
+export interface SpeakOptions {
+  rate?: number;
+  /** Shifted per speaker so a two-host podcast sounds like two people. */
+  pitch?: number;
+}
+
+export function speak(
+  text: string,
+  onEnd?: () => void,
+  options: SpeakOptions = {}
+): void {
+  if (!speechOutputSupported()) {
+    // Keep chained playback moving on browsers with no speech synthesis.
+    onEnd?.();
+    return;
+  }
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(forSpeech(text).slice(0, 4000));
-  utterance.rate = 1.02;
+  utterance.rate = options.rate ?? 1.02;
+  if (options.pitch !== undefined) utterance.pitch = options.pitch;
   utterance.onend = () => onEnd?.();
   utterance.onerror = () => onEnd?.();
   window.speechSynthesis.speak(utterance);

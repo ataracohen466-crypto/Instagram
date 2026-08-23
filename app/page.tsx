@@ -5,10 +5,12 @@ import { useEffect, useState } from "react";
 import {
   ArrowRight,
   Brain,
+  Film,
   CalendarClock,
   ClipboardList,
   FileQuestion,
   Flame,
+  Phone,
   ScanLine,
   Sparkles,
   Target,
@@ -16,6 +18,8 @@ import {
 } from "lucide-react";
 import { useStore, latestAttempt, nextExam, todayTasks, weakTopics } from "@/lib/store";
 import { Card, MasteryDot, Pill, ProgressBar, SectionTitle, Skeleton } from "@/components/ui";
+import StudioButtons from "@/components/StudioButtons";
+import CallOverlay from "@/components/CallOverlay";
 import { daysUntil, greeting, xpProgress } from "@/lib/utils";
 
 const QUICK_ACTIONS = [
@@ -29,6 +33,7 @@ export default function HomePage() {
   const hydrated = useStore((s) => s.hydrated);
   const state = useStore((s) => s);
   const [hello, setHello] = useState("Ready to study?");
+  const [calling, setCalling] = useState(false);
 
   // Rendered after mount so the server and client markup agree.
   useEffect(() => setHello(greeting()), []);
@@ -227,20 +232,60 @@ export default function HomePage() {
       </div>
 
       <SectionTitle>Quick actions</SectionTitle>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-3 gap-3">
+        <button
+          type="button"
+          onClick={() => setCalling(true)}
+          className="card flex flex-col items-center gap-2 px-2 py-4 text-center transition hover:shadow-pop"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+            <Phone size={17} />
+          </span>
+          <span className="text-[11px] font-semibold leading-tight text-ink-soft">
+            Call Tutor
+          </span>
+        </button>
         {QUICK_ACTIONS.map(({ href, label, icon: Icon }) => (
           <Link
             key={label}
             href={href}
-            className="card flex flex-col items-center gap-2 px-3 py-5 text-center transition hover:shadow-pop"
+            className="card flex flex-col items-center gap-2 px-2 py-4 text-center transition hover:shadow-pop"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
               <Icon size={17} />
             </span>
-            <span className="text-xs font-semibold text-ink-soft">{label}</span>
+            <span className="text-[11px] font-semibold leading-tight text-ink-soft">
+              {label}
+            </span>
           </Link>
         ))}
+        <Link
+          href="/notes"
+          className="card flex flex-col items-center gap-2 px-2 py-4 text-center transition hover:shadow-pop"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+            <Film size={17} />
+          </span>
+          <span className="text-[11px] font-semibold leading-tight text-ink-soft">
+            Podcast &amp; Video
+          </span>
+        </Link>
       </div>
+
+      {state.notes.length > 0 && (
+        <>
+          <SectionTitle>Studio — from your notes</SectionTitle>
+          <Card>
+            <p className="mb-3 text-sm text-ink-muted">
+              Turn <strong className="text-ink">{state.notes[0].title}</strong>{" "}
+              into something you can listen to or watch.
+            </p>
+            <StudioButtons noteId={state.notes[0].id} />
+          </Card>
+        </>
+      )}
+
+      {calling && <CallOverlay onClose={() => setCalling(false)} />}
 
       {state.notes.length === 0 && (
         <Card className="mt-5 border-brand-200 bg-brand-50/50">

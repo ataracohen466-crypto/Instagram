@@ -14,7 +14,7 @@ interface Body {
   history?: ChatMessage[];
   message?: string;
   /** "tutor" is Socratic; "homework" walks a problem without giving the answer. */
-  mode?: "tutor" | "homework";
+  mode?: "tutor" | "homework" | "ask";
   context?: string;
 }
 
@@ -29,6 +29,16 @@ How you teach:
 - Never make the student feel stupid. Never lecture for more than about 200 words at a time.
 
 Formatting: markdown bold and bullets are fine; no headings above ###. No preamble like "Great question!" — just teach.`;
+
+const ASK_SYSTEM = (level: string) => `You are TutorAI, talking to a ${level} student who has asked you a question out loud. Answer anything they ask — it does not have to be about what they're revising.
+
+How you answer:
+- Lead with the answer. No preamble, no restating the question.
+- Keep it to what someone would actually say out loud: two to five sentences for most questions. This is being read aloud by a speech synthesiser, so no markdown, no bullet lists, no headings, no code blocks.
+- If the question is about something in their notes, use their notes. If it's outside their notes, just answer it from what you know and don't apologise for the topic.
+- If it's a problem they're clearly meant to work out themselves, give the next step rather than the final answer, and ask what they get.
+- If you don't know or aren't sure, say so plainly in one sentence.
+- Numbers, dates and names should be spoken naturally ("nineteen forty-five", not "1945").`;
 
 const HOMEWORK_SYSTEM = (subject: string, level: string) => `You are TutorAI helping a ${level} student with a ${subject} homework problem.
 
@@ -74,9 +84,12 @@ export async function POST(request: Request) {
     system:
       body.mode === "homework"
         ? HOMEWORK_SYSTEM(subject, level)
+        : body.mode === "ask"
+        ? ASK_SYSTEM(level)
         : TUTOR_SYSTEM(subject, level),
     messages,
-    maxTokens: 2000,
+    // Spoken answers stay short; typed tutoring can run longer.
+    maxTokens: body.mode === "ask" ? 700 : 2000,
   });
 
   return NextResponse.json({
