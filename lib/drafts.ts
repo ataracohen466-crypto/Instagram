@@ -25,6 +25,8 @@ export interface ReelDraft {
   voiceMediaId?: string;
   voiceVolume: number;
   voiceDuration: number;
+  /** Optional: drafts saved before offsets existed simply start at 0. */
+  voiceStart?: number;
   updatedAt: number;
 }
 

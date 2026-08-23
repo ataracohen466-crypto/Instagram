@@ -71,6 +71,36 @@ function sliceBuffer(
   return out;
 }
 
+/**
+ * Rides a gain down while narration plays and back up afterwards.
+ *
+ * Holding the duck across the whole reel would flatten every clip even where
+ * nobody is speaking, so the level only drops for the window the voiceover
+ * actually covers. Returns the time the envelope finishes, which the music
+ * fade needs so the two don't fight over the same parameter.
+ */
+function duckEnvelope(
+  gain: GainNode,
+  base: number,
+  ducked: number,
+  t0: number,
+  from: number,
+  to: number
+): number {
+  const RAMP_IN = 0.15;
+  const RAMP_OUT = 0.25;
+
+  gain.gain.setValueAtTime(base, t0);
+  if (to <= from) return t0;
+
+  if (from > t0) gain.gain.setValueAtTime(base, from);
+  const rampInEnd = Math.min(from + RAMP_IN, to);
+  gain.gain.linearRampToValueAtTime(ducked, rampInEnd);
+  if (to > rampInEnd) gain.gain.setValueAtTime(ducked, to);
+  gain.gain.linearRampToValueAtTime(base, to + RAMP_OUT);
+  return to + RAMP_OUT;
+}
+
 /** Never let a stalled element hang the whole export. */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | void> {
   return Promise.race([
@@ -287,6 +317,8 @@ export interface RenderOptions {
   voiceMediaId?: string;
   /** 0-1. Music ducks hard under this so the narration stays intelligible. */
   voiceVolume?: number;
+  /** Seconds into the reel where the narration starts. */
+  voiceStart?: number;
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;
 }
@@ -306,6 +338,7 @@ export async function renderReel({
   musicStart = 0,
   voiceMediaId,
   voiceVolume = 1,
+  voiceStart = 0,
   onProgress,
   signal,
 }: RenderOptions): Promise<RenderResult> {
@@ -427,10 +460,23 @@ export async function renderReel({
     const t0 = audioCtx.currentTime + 0.05;
     const totalSeconds = totalMs / 1000;
 
+    // How far into the reel the narration runs, clamped to the reel itself.
+    const voiceAt = Math.min(Math.max(voiceStart, 0), totalSeconds);
+    const voiceLen = voice
+      ? Math.min(voice.duration, Math.max(totalSeconds - voiceAt, 0))
+      : 0;
+    const duckFrom = t0 + voiceAt;
+    const duckTo = duckFrom + voiceLen;
+
     // Clip audio ducks under the music so a backing track stays audible.
     const clipGain = audioCtx.createGain();
-    clipGain.gain.value = voice ? 0.25 : music ? 1 - musicVolume * 0.7 : 1;
+    const clipBase = music ? 1 - musicVolume * 0.7 : 1;
     clipGain.connect(audioDest);
+    if (voice && voiceLen > 0) {
+      duckEnvelope(clipGain, clipBase, 0.25, t0, duckFrom, duckTo);
+    } else {
+      clipGain.gain.value = clipBase;
+    }
 
     for (const item of schedule) {
       const node = audioCtx.createBufferSource();
@@ -440,7 +486,7 @@ export async function renderReel({
       node.start(t0 + item.at);
     }
 
-    if (voice) {
+    if (voice && voiceLen > 0) {
       const voiceGain = audioCtx.createGain();
       voiceGain.gain.value = voiceVolume;
       voiceGain.connect(audioDest);
@@ -448,15 +494,26 @@ export async function renderReel({
       const node = audioCtx.createBufferSource();
       node.buffer = voice;
       node.connect(voiceGain);
-      // Starts with the reel and runs as long as it has, never looping.
-      node.start(t0, 0, Math.min(voice.duration, totalSeconds));
+      // Runs from its offset to whatever the reel has left, never looping.
+      node.start(duckFrom, 0, voiceLen);
     }
 
     if (music) {
       const musicGain = audioCtx.createGain();
-      // Narration is the point when it's there, so the bed drops right down.
-      musicGain.gain.value = voice ? Math.min(musicVolume, 0.18) : musicVolume;
       musicGain.connect(audioDest);
+      // Narration is the point while it plays, so the bed drops right down —
+      // but only for as long as the narration lasts.
+      const musicEnvEnd =
+        voice && voiceLen > 0
+          ? duckEnvelope(
+              musicGain,
+              musicVolume,
+              Math.min(musicVolume, 0.18),
+              t0,
+              duckFrom,
+              duckTo
+            )
+          : (musicGain.gain.setValueAtTime(musicVolume, t0), t0);
 
       const node = audioCtx.createBufferSource();
       node.buffer = music;
@@ -471,10 +528,15 @@ export async function renderReel({
       node.connect(musicGain);
       node.start(t0, startAt, node.loop ? totalSeconds : Math.min(totalSeconds, remaining));
 
-      // Fade the last second so it doesn't cut off abruptly.
+      // Fade the last second so it doesn't cut off abruptly. When narration
+      // runs to the very end there's no room to re-anchor first, so the ramp
+      // simply starts from wherever the duck envelope left the level.
+      const endAt = t0 + totalSeconds;
       const fadeAt = t0 + Math.max(totalSeconds - 1, 0);
-      musicGain.gain.setValueAtTime(musicGain.gain.value, fadeAt);
-      musicGain.gain.linearRampToValueAtTime(0.0001, t0 + totalSeconds);
+      if (fadeAt > musicEnvEnd) {
+        musicGain.gain.setValueAtTime(musicVolume, fadeAt);
+      }
+      musicGain.gain.linearRampToValueAtTime(0.0001, endAt);
     }
   }
 

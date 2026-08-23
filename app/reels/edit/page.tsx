@@ -118,6 +118,7 @@ function Editor() {
   const [voiceId, setVoiceId] = useState<string | undefined>();
   const [voiceVolume, setVoiceVolume] = useState(1);
   const [voiceDuration, setVoiceDuration] = useState(0);
+  const [voiceStart, setVoiceStart] = useState(0);
   const [showVoice, setShowVoice] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
@@ -146,6 +147,7 @@ function Editor() {
       setVoiceId(draft.voiceMediaId);
       setVoiceVolume(draft.voiceVolume);
       setVoiceDuration(draft.voiceDuration);
+      setVoiceStart(draft.voiceStart ?? 0);
       return;
     }
 
@@ -270,6 +272,7 @@ function Editor() {
       voiceMediaId: voiceId,
       voiceVolume,
       voiceDuration,
+      voiceStart,
       updatedAt: Date.now(),
     };
     saveDraftToVault(draft);
@@ -283,6 +286,7 @@ function Editor() {
       const record = await putMedia(blob, "audio");
       setVoiceId(record.id);
       setVoiceDuration(record.duration || 0);
+      setVoiceStart(0);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Couldn't save that voiceover."
@@ -418,6 +422,7 @@ function Editor() {
         musicStart,
         voiceMediaId: voiceId,
         voiceVolume,
+        voiceStart,
         onProgress: setExportPct,
       });
 
@@ -889,6 +894,7 @@ function Editor() {
                   onClick={() => {
                     setVoiceId(undefined);
                     setVoiceDuration(0);
+                    setVoiceStart(0);
                   }}
                   aria-label="Remove voiceover"
                   className="text-ig-muted"
@@ -911,6 +917,23 @@ function Editor() {
                   {Math.round(voiceVolume * 100)}%
                 </span>
               </div>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="w-10 shrink-0 text-[11px] text-ig-muted">
+                  Start
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(totalSeconds - 0.5, 0)}
+                  step={0.5}
+                  value={Math.min(voiceStart, Math.max(totalSeconds - 0.5, 0))}
+                  onChange={(e) => setVoiceStart(Number(e.target.value))}
+                  className="h-1 flex-1 accent-ig-blue"
+                />
+                <span className="w-9 text-right text-[11px] tabular-nums text-ig-muted">
+                  {voiceStart.toFixed(1)}s
+                </span>
+              </div>
               <button
                 onClick={() => setShowVoice(true)}
                 className="mt-2 text-[12px] font-semibold text-ig-blue"
@@ -918,8 +941,11 @@ function Editor() {
                 Record again
               </button>
               <p className="mt-1.5 text-[11px] leading-4 text-ig-muted">
-                Plays from the start of the reel. Clips and music drop right
-                down underneath it.
+                {voiceStart > 0
+                  ? `Comes in ${voiceStart.toFixed(1)}s into the reel.`
+                  : "Plays from the start of the reel."}{" "}
+                Clips and music drop down underneath it, then come back up
+                once it finishes.
               </p>
             </>
           ) : (
