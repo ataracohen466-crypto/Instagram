@@ -6,6 +6,14 @@ export type SkillLevel = "absolute-beginner" | "beginner" | "early-intermediate"
 
 export type FocusPreference = "songs" | "technique" | "theory" | "mixture";
 
+// The three parallel 20-level learning paths (lib/curriculum.ts).
+export type PathKey = "chords" | "notes" | "tabs";
+
+export interface PathProgress {
+  completedLessonIds: string[]; // e.g. "chords-L03-P02-S04"
+  unlockedLevel: number; // highest level (1-20) unlocked so far
+}
+
 export interface OnboardingProfile {
   name: string;
   guitarType: GuitarType;
@@ -28,6 +36,11 @@ export interface ChordDef {
   difficulty: 1 | 2 | 3 | 4 | 5;
 }
 
+export interface LyricLine {
+  text: string;
+  chordId: string; // chord to play under this line
+}
+
 export interface SongSection {
   name: string; // "Intro", "Verse 1", "Chorus"...
   chords: string[]; // chord ids in order
@@ -35,6 +48,7 @@ export interface SongSection {
   bars: number;
   tab?: string; // ASCII tab block, optional
   notes?: string; // short teaching note for this section
+  lyrics?: LyricLine[]; // original lyrics, line-by-line, each tagged with its chord — built-in songs only, never AI-generated (never copyrighted)
 }
 
 export interface SongArrangement {
@@ -124,7 +138,6 @@ export interface UserProgress {
   level: SkillLevel;
   chordsMastered: string[]; // chord ids the learner has "mastered" (practiced enough)
   chordReps: Record<string, number>;
-  completedLessonIds: string[];
   songsLearned: string[];
   streakDays: number;
   lastPracticeDate: string | null;
@@ -133,4 +146,5 @@ export interface UserProgress {
   fixReports: FixMyPlayingReport[];
   gameScores: GameScore[];
   weakAreas: string[]; // free-text labels like "F chord", "C→G transition"
+  paths: Record<PathKey, PathProgress>;
 }

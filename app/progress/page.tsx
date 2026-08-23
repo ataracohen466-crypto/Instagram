@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Flame, Clock3, Music4, Trophy, TrendingDown, TrendingUp, ChevronRight } from "lucide-react";
 import { useGuitarAI } from "@/lib/store";
-import { LEVELS, levelIndex } from "@/lib/levels";
 import { CHORDS } from "@/lib/chords";
+import { PATH_META, type PathKey } from "@/lib/curriculum";
 import StatCard from "@/components/StatCard";
 import ProgressRing from "@/components/ProgressRing";
+
+const PATH_KEYS: PathKey[] = ["chords", "notes", "tabs"];
 
 export default function ProgressPage() {
   const [mounted, setMounted] = useState(false);
@@ -15,8 +17,8 @@ export default function ProgressPage() {
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
 
-  const level = LEVELS[levelIndex(progress.level)];
-  const nextLesson = level.lessons.find((l) => !progress.completedLessonIds.includes(l.id));
+  const totalLessonsDone = PATH_KEYS.reduce((a, k) => a + progress.paths[k].completedLessonIds.length, 0);
+  const topPath = PATH_KEYS.reduce((a, b) => (progress.paths[b].unlockedLevel > progress.paths[a].unlockedLevel ? b : a));
 
   const accuracySamples = [
     ...progress.fixReports.map((r) => r.overallAccuracy),
@@ -36,10 +38,10 @@ export default function ProgressPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Level" value={level.title} icon={Trophy} accent="gold" />
+        <StatCard label="Best path" value={`${PATH_META[topPath].label} · L${progress.paths[topPath].unlockedLevel}`} icon={Trophy} accent="gold" />
         <StatCard label="Streak" value={`${progress.streakDays}d`} icon={Flame} accent="coral" />
         <StatCard label="Total practice" value={`${Math.round(progress.totalPracticeMinutes)}m`} icon={Clock3} accent="teal" />
-        <StatCard label="Songs learned" value={progress.songsLearned.length} icon={Music4} accent="gold" />
+        <StatCard label="Lessons done" value={totalLessonsDone} icon={Music4} accent="gold" />
       </div>
 
       <div className="card flex flex-col items-center gap-6 p-6 sm:flex-row">
@@ -100,18 +102,17 @@ export default function ProgressPage() {
         </div>
       </div>
 
-      {nextLesson && (
-        <div className="card flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-teal-400">Recommended next</p>
-            <h3 className="mt-1 font-display text-lg font-semibold">{nextLesson.title}</h3>
-            <p className="mt-1 text-sm text-ink-300">{nextLesson.summary}</p>
-          </div>
-          <Link href="/learning-path" className="btn-secondary shrink-0">
-            Open lesson <ChevronRight size={16} />
-          </Link>
+      <div className="card p-5">
+        <h3 className="font-display font-semibold">Continue a path</h3>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {PATH_KEYS.map((key) => (
+            <Link key={key} href={`/learning-path/${key}`} className="flex items-center justify-between rounded-lg bg-ink-900/50 px-3 py-2.5 text-sm hover:bg-ink-800">
+              <span>{PATH_META[key].icon} {PATH_META[key].label} · L{progress.paths[key].unlockedLevel}</span>
+              <ChevronRight size={14} className="text-ink-500" />
+            </Link>
+          ))}
         </div>
-      )}
+      </div>
 
       {progress.gameScores.length > 0 && (
         <div className="card p-5">

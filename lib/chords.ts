@@ -34,6 +34,37 @@ export const CHORDS: Record<string, ChordDef> = {
     barre: { fret: 2, fromString: 1, toString: 5 },
     difficulty: 4,
   },
+  G7: { id: "G7", name: "G7", frets: [3, 2, 0, 0, 0, 1], fingers: [3, 2, null, null, null, 1], difficulty: 3 },
+  Am7: { id: "Am7", name: "A minor 7", frets: [null, 0, 2, 0, 1, 0], fingers: [null, null, 2, null, 1, null], difficulty: 2 },
+  Dm7: { id: "Dm7", name: "D minor 7", frets: [null, null, 0, 2, 1, 1], fingers: [null, null, null, 2, 1, 1], difficulty: 3 },
+  Asus2: { id: "Asus2", name: "A sus2", frets: [null, 0, 2, 2, 0, 0], fingers: [null, null, 1, 2, null, null], difficulty: 2 },
+  Dsus2: { id: "Dsus2", name: "D sus2", frets: [null, null, 0, 2, 3, 0], fingers: [null, null, null, 1, 2, null], difficulty: 2 },
+  E5: { id: "E5", name: "E5 (power chord)", frets: [0, 2, 2, null, null, null], fingers: [null, 1, 1, null, null, null], difficulty: 2 },
+  A5: { id: "A5", name: "A5 (power chord)", frets: [null, 0, 2, 2, null, null], fingers: [null, null, 1, 1, null, null], difficulty: 2 },
+  Bb: {
+    id: "Bb",
+    name: "Bb major (barre)",
+    frets: [null, 1, 3, 3, 3, 1],
+    fingers: [null, 1, 3, 3, 3, 1],
+    barre: { fret: 1, fromString: 1, toString: 5 },
+    difficulty: 5,
+  },
+  B: {
+    id: "B",
+    name: "B major (barre)",
+    frets: [null, 2, 4, 4, 4, 2],
+    fingers: [null, 1, 3, 3, 3, 1],
+    barre: { fret: 2, fromString: 1, toString: 5 },
+    difficulty: 5,
+  },
+  "F#m": {
+    id: "F#m",
+    name: "F# minor (barre)",
+    frets: [2, 4, 4, 2, 2, 2],
+    fingers: [1, 3, 4, 1, 1, 1],
+    barre: { fret: 2, fromString: 0, toString: 5 },
+    difficulty: 5,
+  },
 };
 
 export const CHORD_ORDER_BY_DIFFICULTY = Object.values(CHORDS)
@@ -43,7 +74,17 @@ export const CHORD_ORDER_BY_DIFFICULTY = Object.values(CHORDS)
 // Fancier chord names real songs use, mapped to the nearest shape we have a
 // diagram for. The label shown to the player is always the real chord name
 // (e.g. "Em7") — only the fretboard picture is simplified to a shape we draw.
-export const CHORD_DIAGRAM_ALIAS: Record<string, string> = { Em7: "Em", Dsus4: "D", A7sus4: "A7", "D/F#": "D" };
+export const CHORD_DIAGRAM_ALIAS: Record<string, string> = {
+  Em7: "Em",
+  Dsus4: "D",
+  A7sus4: "A7",
+  "D/F#": "D",
+  D6add9: "D",
+  Aadd9: "A",
+  E7sus4: "E7",
+  "G/B": "G",
+  "C/G": "C",
+};
 
 export function diagramIdFor(chordId: string): string {
   return CHORD_DIAGRAM_ALIAS[chordId] ?? chordId;
@@ -69,6 +110,17 @@ export const CHORD_CHROMA_TEMPLATES: Record<string, number[]> = {
   A7: pcs(["A", "C#", "E", "G"]),
   D7: pcs(["D", "F#", "A", "C"]),
   B7: pcs(["B", "D#", "F#", "A"]),
+  Bm: pcs(["B", "D", "F#"]),
+  G7: pcs(["G", "B", "D", "F"]),
+  Am7: pcs(["A", "C", "E", "G"]),
+  Dm7: pcs(["D", "F", "A", "C"]),
+  Asus2: pcs(["A", "B", "E"]),
+  Dsus2: pcs(["D", "E", "A"]),
+  E5: pcs(["E", "B"]),
+  A5: pcs(["A", "E"]),
+  Bb: pcs(["A#", "D", "F"]),
+  B: pcs(["B", "D#", "F#"]),
+  "F#m": pcs(["F#", "A", "C#"]),
 };
 
 function pcs(notes: string[]): number[] {

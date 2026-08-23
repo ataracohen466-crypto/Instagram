@@ -10,6 +10,18 @@ full product spec, UX design, architecture, and roadmap for the product. The
 `/` app in this repository is the real, working MVP described in section 16 —
 not a mockup.
 
+> **Update — the 3-path curriculum remodel.** The Learning Path was rebuilt
+> around three parallel, home-screen-selectable paths — **Chords**, **Notes**
+> (standard notation), and **Tabs** — each 20 levels × 10 parts × 5 lessons
+> (1,000 lessons per path), with an AI-narrated Lesson Player (real
+> browser text-to-speech plus live mic-based practice checks) on every
+> lesson, and a lyric-synced "Play Song" karaoke mode for the app's original
+> (fully-lyricked, non-copyrighted) songs. The curriculum is procedurally
+> generated from a small set of pedagogical templates rather than hand-typed
+> per lesson — see `lib/curriculum.ts` — and the real popular-song library
+> grew from 10 to 50 verified songs. Sections 9 and 16 below describe the
+> pre-remodel 5-level system; treat the paragraph above as its replacement.
+
 ---
 
 ## 1. Product Specification

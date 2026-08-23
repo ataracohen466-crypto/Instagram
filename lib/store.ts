@@ -8,6 +8,9 @@ import type {
   FixMyPlayingReport,
   GameScore,
   PracticeSessionRecord,
+  PathKey,
+  PathProgress,
+  SkillLevel,
 } from "./types";
 
 const defaultProfile: OnboardingProfile = {
@@ -22,11 +25,14 @@ const defaultProfile: OnboardingProfile = {
   completedAt: null,
 };
 
+function freshPathProgress(unlockedLevel = 1): PathProgress {
+  return { completedLessonIds: [], unlockedLevel };
+}
+
 const defaultProgress: UserProgress = {
   level: "beginner",
   chordsMastered: [],
   chordReps: {},
-  completedLessonIds: [],
   songsLearned: [],
   streakDays: 0,
   lastPracticeDate: null,
@@ -35,6 +41,17 @@ const defaultProgress: UserProgress = {
   fixReports: [],
   gameScores: [],
   weakAreas: [],
+  paths: { chords: freshPathProgress(), notes: freshPathProgress(), tabs: freshPathProgress() },
+};
+
+// Onboarding's 5-tier self-report maps to a starting level (1-20) in each
+// path so an intermediate/advanced learner isn't stuck redoing open chords.
+const STARTING_LEVEL_BY_SKILL: Record<SkillLevel, number> = {
+  "absolute-beginner": 1,
+  beginner: 3,
+  "early-intermediate": 7,
+  intermediate: 11,
+  advanced: 15,
 };
 
 interface GuitarAIState {
@@ -45,7 +62,7 @@ interface GuitarAIState {
   resetOnboarding: () => void;
   logPractice: (minutes: number, focus: string) => void;
   addChordReps: (chordId: string, reps: number) => void;
-  completeLesson: (lessonId: string) => void;
+  completeGeneratedLesson: (path: PathKey, lessonId: string, level: number, lessonsPerLevel: number) => void;
   addSongLearned: (title: string) => void;
   addFixReport: (report: FixMyPlayingReport) => void;
   addGameScore: (score: GameScore) => void;
@@ -77,10 +94,21 @@ export const useGuitarAI = create<GuitarAIState>()(
       setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
 
       completeOnboarding: (p) =>
-        set((s) => ({
-          profile: { ...p, completedAt: new Date().toISOString() },
-          progress: { ...s.progress, level: p.skillLevel },
-        })),
+        set((s) => {
+          const startLevel = STARTING_LEVEL_BY_SKILL[p.skillLevel];
+          return {
+            profile: { ...p, completedAt: new Date().toISOString() },
+            progress: {
+              ...s.progress,
+              level: p.skillLevel,
+              paths: {
+                chords: freshPathProgress(startLevel),
+                notes: freshPathProgress(startLevel),
+                tabs: freshPathProgress(startLevel),
+              },
+            },
+          };
+        }),
 
       resetOnboarding: () => set({ profile: defaultProfile, progress: defaultProgress }),
 
@@ -108,13 +136,21 @@ export const useGuitarAI = create<GuitarAIState>()(
           return { progress: { ...s.progress, chordReps: nextReps, chordsMastered: Array.from(mastered) } };
         }),
 
-      completeLesson: (lessonId) =>
-        set((s) => ({
-          progress: {
-            ...s.progress,
-            completedLessonIds: Array.from(new Set([...s.progress.completedLessonIds, lessonId])),
-          },
-        })),
+      completeGeneratedLesson: (path, lessonId, level, lessonsPerLevel) =>
+        set((s) => {
+          const current = s.progress.paths[path];
+          const completedLessonIds = Array.from(new Set([...current.completedLessonIds, lessonId]));
+          const levelTag = `-L${String(level).padStart(2, "0")}-`;
+          const doneInLevel = completedLessonIds.filter((id) => id.includes(levelTag)).length;
+          const readyToAdvance = doneInLevel >= Math.ceil(lessonsPerLevel * 0.6);
+          const unlockedLevel = readyToAdvance ? Math.max(current.unlockedLevel, Math.min(20, level + 1)) : current.unlockedLevel;
+          return {
+            progress: {
+              ...s.progress,
+              paths: { ...s.progress.paths, [path]: { completedLessonIds, unlockedLevel } },
+            },
+          };
+        }),
 
       addSongLearned: (title) =>
         set((s) => ({
@@ -139,7 +175,17 @@ export const useGuitarAI = create<GuitarAIState>()(
 
       setLevel: (level) => set((s) => ({ progress: { ...s.progress, level } })),
     }),
-    { name: "guitar-ai-storage" }
+    {
+      name: "guitar-ai-storage",
+      version: 1,
+      migrate: (persisted) => {
+        const state = persisted as { profile?: OnboardingProfile; progress?: Partial<UserProgress> };
+        if (state?.progress && !state.progress.paths) {
+          state.progress.paths = { chords: freshPathProgress(), notes: freshPathProgress(), tabs: freshPathProgress() };
+        }
+        return state as { profile: OnboardingProfile; progress: UserProgress };
+      },
+    }
   )
 );
 

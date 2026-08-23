@@ -16,16 +16,31 @@ brand identity — lives in **[`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)**.
 
 ## What's actually working right now
 
+- **Learning Path** (`/learning-path`) — three parallel, pick-your-own paths
+  from the home screen: **Chords**, **Notes** (standard notation), and
+  **Tabs**. Each is 20 levels × 10 parts × 5 lessons — 1,000 real, distinct
+  lessons per path, procedurally assembled from a small set of pedagogical
+  "archetypes" (introduce, drill, transition, strum/rhythm focus, speed ramp,
+  mixed review, timed checkpoint, freeplay) rather than 3,000 hand-typed
+  paragraphs — the same approach large gamified skill trees use to stay
+  tractable. Every lesson has a **Lesson Player**: a real browser
+  text-to-speech "AI teacher" narrating the instructions (Web Speech API),
+  the relevant chord diagram / music staff / ASCII tab, and a live
+  microphone check (pitch detection for notes/tabs, chroma chord-matching for
+  chords) that listens and tells you when you've got it right.
+- **Learn a Song** (`/learn-song`) — a curated library of **50 real,
+  well-known songs** across genres and decades (Wonderwall, Fast Car, Hotel
+  California, Someone You Loved, and many more) with verified chords, capo,
+  and strum pattern — chords only, never lyrics or a note-for-note
+  transcription, since chord progressions are functional building blocks
+  rather than independently copyrightable expression. Underneath that, a set
+  of **original songs with full lyrics** you can Play (karaoke-style: lyrics
+  scroll in sync with the chords, and the app listens live and marks each
+  line as you nail the chord). Describing a vibe still generates a fresh
+  *original* arrangement on demand.
 - **Live Coach** (`/live-coach`) — real mic input, in-browser autocorrelation
   pitch detection (tuner mode) and chroma-based chord matching (chord-check
   mode), with short, rule-based coaching feedback. No audio is uploaded.
-- **Learn a Song** (`/learn-song`) — pick from a curated list of real,
-  well-known songs (Wonderwall, Perfect, Let It Be, and more) and get their
-  chord chart, capo, and strum pattern (chords only — no lyrics or
-  note-for-note transcription of the recording); or describe a song or vibe
-  and get an *original* teaching arrangement instead, with chords, chord
-  diagrams, strumming pattern, tab, BPM, slow-practice-mode click track, and
-  beginner/intermediate/advanced versions.
 - **Fix My Playing** (`/fix-my-playing`) — play a full built-in practice song
   along with a click track; the app measures your actual chord accuracy and
   strum timing via real signal processing, ranks your biggest issues, and
@@ -36,15 +51,13 @@ brand identity — lives in **[`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)**.
 - **Create Music** (`/create-music`) — describe a song idea and get a fully
   original composition: chords, melody description, strumming pattern, tab,
   and practice instructions.
-- **Learning Path** (`/learning-path`) — five levels (Absolute Beginner →
-  Advanced), each with lessons, chord diagrams, exercises, and technique
-  challenges, gated by progress.
 - **Practice** (`/practice`) — pick 5–45 minutes and get a generated session
   that prioritizes your stored weak spots, with a live countdown.
-- **Progress** (`/progress`) — streak, total practice time, chords mastered,
-  average accuracy, strongest/weakest areas, and a recommended next lesson.
+- **Progress** (`/progress`) — streak, total practice time, per-path level
+  and lessons completed, average accuracy, strongest/weakest areas.
 - **Onboarding** (`/onboarding`) — a 7-step wizard (guitar type, skill level,
-  genres, goals, practice time, focus) that personalizes everything above.
+  genres, goals, practice time, focus) that personalizes everything above,
+  including which level each of the three paths starts unlocked at.
 
 All progress is stored locally (`localStorage`, via a persisted Zustand
 store) — no account or database required to use the app.
@@ -96,12 +109,14 @@ your browser will prompt for permission the first time you use them.
 
 ```
 app/
-  page.tsx                        home dashboard
+  page.tsx                        home dashboard (3 paths + Popular Songs)
   onboarding/                     7-step personalization wizard
   practice/                       duration picker + generated session
-  learning-path/                  5-level curriculum
+  learning-path/                  path picker -> levels -> parts (Lesson Player)
+    [path]/page.tsx                 20-level list for chords|notes|tabs
+    [path]/[level]/page.tsx         10 parts x 5 lessons, inline Lesson Player
   live-coach/                     real-time mic tuner + chord check
-  learn-song/                     AI arrangement generator
+  learn-song/                     50-song real library + original Play Song mode
   fix-my-playing/                 record + real DSP analysis + report
   game/                           mic-driven rhythm game
   create-music/                   AI composition generator
@@ -109,16 +124,20 @@ app/
   api/ai/song-arrangement/        Claude JSON-mode route (+ fallback)
   api/ai/compose/                 Claude JSON-mode route (+ fallback)
   api/ai/fix-report/              Claude summary route (+ fallback)
-components/                       Nav, ChordDiagram, TabViewer, StrumPattern,
+components/                       Nav, ChordDiagram, NoteStaff, TabViewer,
+                                   StrumPattern, LessonPlayer, PlaySong,
                                    StatCard, ProgressRing, FeatureTile,
                                    OnboardingGate
 lib/
   types.ts                        shared types
   store.ts                        Zustand store, persisted to localStorage
-  chords.ts                       chord shapes/diagrams + chroma templates
-  songs.ts                        built-in original practice songs
-  levels.ts                       5-level curriculum content
-  routine.ts                      practice-session / fix-it routine builder
+  chords.ts                       27 chord shapes/diagrams + chroma templates
+  curriculum.ts                   procedural 3-path x 20x10x5 lesson generator
+  notation.ts                     guitar <-> standard-notation staff mapping
+  songs.ts                        built-in original songs (with full lyrics)
+  popularSongs.ts                 50 real, verified song chord charts
+  lyrics.ts                       lyric-line timeline builder for Play Song
+  levels.ts / routine.ts          practice-session exercise bank (used by /practice)
   ai.ts / fallback.ts             Anthropic wrapper + offline generators
   audio/
     pitch.ts                      autocorrelation pitch detection

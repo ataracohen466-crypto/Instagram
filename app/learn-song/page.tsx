@@ -9,6 +9,9 @@ import { Metronome } from "@/lib/audio/metronome";
 import { useGuitarAI } from "@/lib/store";
 import type { SongArrangement } from "@/lib/types";
 import { POPULAR_SONGS, type PopularSong } from "@/lib/popularSongs";
+import { BUILT_IN_SONGS } from "@/lib/songs";
+import { hasLyrics } from "@/lib/lyrics";
+import PlaySong from "@/components/PlaySong";
 
 const GENRES = ["Any", "Pop", "Rock", "Folk", "Blues", "Jazz", "Country", "Indie"];
 const MOODS = ["Any", "Upbeat", "Dreamy", "Melancholic", "Playful", "Intense"];
@@ -25,6 +28,9 @@ export default function LearnSongPage() {
   const [version, setVersion] = useState<"beginner" | "intermediate" | "advanced">("beginner");
   const [slowPct, setSlowPct] = useState(100);
   const [playing, setPlaying] = useState(false);
+
+  const [originalTitle, setOriginalTitle] = useState<string | null>(null);
+  const originalSongs = BUILT_IN_SONGS.filter(hasLyrics);
 
   const [realSong, setRealSong] = useState<PopularSong | null>(null);
   const [realSlowPct, setRealSlowPct] = useState(100);
@@ -200,6 +206,37 @@ export default function LearnSongPage() {
           <div className="card p-5">
             <p className="text-sm text-ink-300">💡 {realSong.tip}</p>
           </div>
+        </div>
+      )}
+
+      <div>
+        <h3 className="mb-1 font-display text-base font-semibold">Practice with lyrics</h3>
+        <p className="mb-3 text-sm text-ink-400">
+          Original songs written for Guitar AI — full lyrics, synced to the chords, with live listening while you play.
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {originalSongs.map((s) => (
+            <button
+              key={s.title}
+              onClick={() => setOriginalTitle(s.title === originalTitle ? null : s.title)}
+              className={`rounded-xl border p-3 text-left transition ${
+                originalTitle === s.title ? "border-teal-500 bg-teal-500/10" : "border-ink-600 bg-ink-800/50 hover:border-ink-500"
+              }`}
+            >
+              <div className="font-display text-sm font-semibold text-ink-100">{s.title}</div>
+              <div className="mt-0.5 text-xs text-ink-400">
+                {s.bpm} BPM · {"★".repeat(s.difficulty)}
+                {"☆".repeat(5 - s.difficulty)}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {originalTitle && (
+        <div className="card p-5">
+          <h2 className="mb-4 font-display text-lg font-semibold">{originalTitle}</h2>
+          <PlaySong song={originalSongs.find((s) => s.title === originalTitle)!} />
         </div>
       )}
 
