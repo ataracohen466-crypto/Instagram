@@ -84,7 +84,11 @@ const TEXT_STYLES: Record<string, string> = {
 function Editor() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const template = getTemplate(searchParams.get("t") ?? "");
+  const templateId = searchParams.get("t") ?? "";
+  const myTemplates = useApp((s) => s.myTemplates);
+  // Built-ins first, then anything the user made themselves.
+  const template =
+    getTemplate(templateId) ?? myTemplates.find((t) => t.id === templateId);
 
   const profile = useApp((s) => s.profile);
   const addReel = useApp((s) => s.addReel);

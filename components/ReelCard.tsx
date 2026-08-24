@@ -12,6 +12,9 @@ import {
   VolumeX,
   Trash2,
   PencilLine,
+  Pause,
+  Play,
+  RotateCcw,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Reel, ReelFrame } from "@/lib/reels";
@@ -21,6 +24,7 @@ import { useApp, MY_ID, uid } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
 import { generateComments } from "@/lib/aiClient";
 import { getMediaUrl, putMedia } from "@/lib/media";
+import { shareFile, safeFilename, extensionFor, madeOn } from "@/lib/share";
 import { renderReel } from "@/lib/render";
 import { FILTERS } from "@/lib/reelTemplates";
 import ReelMedia from "./ReelMedia";
@@ -71,6 +75,8 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const lastTap = useRef(0);
 
   const [active, setActive] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [frame, setFrame] = useState(0);
   const [burst, setBurst] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -133,22 +139,27 @@ export default function ReelCard({ reel }: { reel: Reel }) {
 
   // Each frame holds for its own duration, so template pacing is respected.
   useEffect(() => {
-    if (reel.videoMediaId || reel.videoSrc || !active || frameCount < 2) return;
+    if (reel.videoMediaId || reel.videoSrc || !active || paused || frameCount < 2)
+      return;
     const hold = (frames[frame % frameCount]?.seconds ?? 4) * 1000;
     const id = setTimeout(() => setFrame((f) => (f + 1) % frameCount), hold);
     return () => clearTimeout(id);
-  }, [active, frame, frameCount, frames, reel.videoSrc, reel.videoMediaId]);
+  }, [active, paused, frame, frameCount, frames, reel.videoSrc, reel.videoMediaId]);
 
-  // Restart from the top whenever a reel scrolls back into view.
+  // Restart from the top whenever a reel scrolls back into view, and drop
+  // any manual pause so the next reel doesn't inherit it.
   useEffect(() => {
-    if (!active) setFrame(0);
+    if (!active) {
+      setFrame(0);
+      setPaused(false);
+    }
   }, [active]);
 
   // Only the visible persona clip plays, so scrolling stays cheap.
   useEffect(() => {
     const el = personaVideo.current;
     if (!el) return;
-    if (active) el.play().catch(() => {});
+    if (active && !paused) el.play().catch(() => {});
     else el.pause();
 
     const onTime = () => {
@@ -156,7 +167,51 @@ export default function ReelCard({ reel }: { reel: Reel }) {
     };
     el.addEventListener("timeupdate", onTime);
     return () => el.removeEventListener("timeupdate", onTime);
-  }, [active, reel.videoSrc, renderedUrl]);
+  }, [active, paused, reel.videoSrc, renderedUrl]);
+
+  /** Back to the first frame, playing, wherever it had got to. */
+  function restart() {
+    const el = personaVideo.current;
+    if (el) {
+      el.currentTime = 0;
+      el.play().catch(() => {});
+    }
+    setFrame(0);
+    setProgress(0);
+    setPaused(false);
+  }
+
+  async function shareOut() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const url = renderedUrl ?? reel.videoSrc ?? null;
+      if (!url) {
+        alert("Combine this reel into a video first, then share it.");
+        return;
+      }
+      const blob = await (await fetch(url)).blob();
+      const name = safeFilename(
+        reel.caption || reel.templateName || "reel",
+        extensionFor(blob, "mp4")
+      );
+      const result = await shareFile({
+        blob,
+        filename: name,
+        title: reel.caption || "Reel",
+        text: reel.caption || undefined,
+      });
+      if (result === "downloaded") {
+        alert("Saved to your downloads — share it from there.");
+      } else if (result === "unavailable") {
+        alert("This browser can't share or save that file.");
+      }
+    } catch {
+      alert("Couldn't prepare that reel for sharing.");
+    } finally {
+      setSharing(false);
+    }
+  }
 
   const needsCombining = Boolean(
     reel.isMine && !reel.videoMediaId && reel.frames?.some((f) => f.mediaId || f.imageUrl)
@@ -337,16 +392,46 @@ export default function ReelCard({ reel }: { reel: Reel }) {
         />
       )}
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setReelsMuted(!muted);
-        }}
-        aria-label={muted ? "Unmute" : "Mute"}
-        className="absolute right-3 top-[62px] z-10 rounded-full bg-black/30 p-1.5 text-white"
-      >
-        {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-      </button>
+      <div className="absolute right-3 top-[62px] z-10 flex flex-col gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setReelsMuted(!muted);
+          }}
+          aria-label={muted ? "Unmute" : "Mute"}
+          className="rounded-full bg-black/30 p-1.5 text-white"
+        >
+          {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setPaused((v) => !v);
+          }}
+          aria-label={paused ? "Play reel" : "Pause reel"}
+          className="rounded-full bg-black/30 p-1.5 text-white"
+        >
+          {paused ? <Play size={16} fill="white" /> : <Pause size={16} />}
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            restart();
+          }}
+          aria-label="Restart reel"
+          className="rounded-full bg-black/30 p-1.5 text-white"
+        >
+          <RotateCcw size={16} />
+        </button>
+      </div>
+
+      {paused && (
+        <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center">
+          <span className="rounded-full bg-black/45 p-5">
+            <Play size={40} fill="white" className="text-white" />
+          </span>
+        </div>
+      )}
 
       {/* Right action rail */}
       <div className="absolute bottom-[104px] right-3 z-10 flex flex-col items-center gap-5 text-white">
@@ -369,7 +454,12 @@ export default function ReelCard({ reel }: { reel: Reel }) {
             {reel.comments.length}
           </span>
         </button>
-        <button className="flex flex-col items-center gap-1">
+        <button
+          onClick={shareOut}
+          disabled={sharing}
+          aria-label="Share reel outside the app"
+          className="flex flex-col items-center gap-1 disabled:opacity-50"
+        >
           <Send size={25} />
         </button>
         {reel.isMine ? (
@@ -457,6 +547,7 @@ export default function ReelCard({ reel }: { reel: Reel }) {
           <p className="mt-1.5 text-[11px] text-white/80">{combineError}</p>
         )}
         <p className="mt-2 text-[13px] leading-[17px]">{reel.caption}</p>
+        <p className="mt-1 text-[11px] text-white/70">Made {madeOn(reel.createdAt)}</p>
         <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-white/90">
           <Music2 size={13} /> {reel.songCredit || reel.audioLabel}
         </p>

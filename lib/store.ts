@@ -11,6 +11,7 @@ import { buildSeedReels } from "./reels";
 import type { StoryItem } from "./stories";
 import { STORY_LIFETIME_MS } from "./stories";
 import type { ReelDraft } from "./drafts";
+import type { ReelTemplate } from "./reelTemplates";
 
 interface AppState {
   hydrated: boolean;
@@ -19,6 +20,8 @@ interface AppState {
   reels: Reel[];
   myStory: StoryItem[];
   drafts: ReelDraft[];
+  /** Templates the user built themselves. */
+  myTemplates: ReelTemplate[];
   /** Sound preference for the reels feed, remembered across reels. */
   reelsMuted: boolean;
   chats: Record<string, ChatMessage[]>;
@@ -28,6 +31,8 @@ interface AppState {
   saveDraft: (draft: ReelDraft) => void;
   deleteDraft: (id: string) => void;
   setReelsMuted: (muted: boolean) => void;
+  saveTemplate: (template: ReelTemplate) => void;
+  deleteTemplate: (id: string) => void;
   pruneStories: () => string[];
   setPostArchived: (postId: string, archived: boolean) => void;
   updatePost: (postId: string, patch: Partial<Post>) => void;
@@ -87,7 +92,7 @@ export function unbindVault(): void {
   vaultKey = null;
   // Drop decrypted clip URLs so one account's media can't leak into the next.
   clearMediaCache();
-  useApp.setState({ profile: null, posts: [], reels: [], myStory: [], drafts: [], chats: {} });
+  useApp.setState({ profile: null, posts: [], reels: [], myStory: [], drafts: [], myTemplates: [], chats: {} });
 }
 
 export const useApp = create<AppState>()(
@@ -99,6 +104,7 @@ export const useApp = create<AppState>()(
       reels: [],
       myStory: [],
       drafts: [],
+      myTemplates: [],
       reelsMuted: true,
       chats: {},
 
@@ -112,7 +118,7 @@ export const useApp = create<AppState>()(
         })),
 
       resetEverything: () =>
-        set({ profile: null, posts: [], reels: [], myStory: [], drafts: [], chats: {} }),
+        set({ profile: null, posts: [], reels: [], myStory: [], drafts: [], myTemplates: [], chats: {} }),
 
       addStoryItem: (item) =>
         set((state) => ({ myStory: [...state.myStory, item] })),
@@ -130,6 +136,20 @@ export const useApp = create<AppState>()(
         set((state) => ({ drafts: state.drafts.filter((d) => d.id !== id) })),
 
       setReelsMuted: (muted) => set({ reelsMuted: muted }),
+
+      // Editing a template replaces it rather than adding a near-duplicate.
+      saveTemplate: (template) =>
+        set((state) => ({
+          myTemplates: [
+            template,
+            ...state.myTemplates.filter((t) => t.id !== template.id),
+          ],
+        })),
+
+      deleteTemplate: (id) =>
+        set((state) => ({
+          myTemplates: state.myTemplates.filter((t) => t.id !== id),
+        })),
 
       /**
        * Drops story items past their 24 hours and reports the media ids that
@@ -248,6 +268,7 @@ export const useApp = create<AppState>()(
         reels: state.reels,
         myStory: state.myStory,
         drafts: state.drafts,
+        myTemplates: state.myTemplates,
         reelsMuted: state.reelsMuted,
         chats: state.chats,
       }),

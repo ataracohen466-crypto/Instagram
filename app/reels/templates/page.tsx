@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Search, Layers, Clock, Trash2, Mic, Music2 } from "lucide-react";
+import { ChevronLeft, Search, Layers, Clock, Trash2, Mic, Music2, Plus, Pencil } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { filledSlots, draftLength } from "@/lib/drafts";
 import {
@@ -54,6 +54,8 @@ export default function TemplatesPage() {
   const [category, setCategory] = useState<CategoryId | "all">("all");
   const drafts = useApp((s) => s.drafts);
   const deleteDraft = useApp((s) => s.deleteDraft);
+  const myTemplates = useApp((s) => s.myTemplates);
+  const deleteTemplate = useApp((s) => s.deleteTemplate);
   const [query, setQuery] = useState("");
 
   const results = useMemo(() => {
@@ -120,6 +122,55 @@ export default function TemplatesPage() {
       </header>
 
       <div className="mx-auto w-full max-w-[470px] px-4 pt-3">
+        {!query && category === "all" && (
+          <Link
+            href="/reels/templates/new"
+            className="mb-5 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-ig-border py-3 text-[13px] font-semibold text-ig-blue"
+          >
+            <Plus size={16} /> Make your own template
+          </Link>
+        )}
+
+        {myTemplates.length > 0 && !query && category === "all" && (
+          <div className="mb-5">
+            <p className="text-[13px] font-semibold">Your templates</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {myTemplates.map((t) => (
+                <div key={t.id} className="relative">
+                  <Link
+                    href={`/reels/edit?t=${encodeURIComponent(t.id)}`}
+                    className="block"
+                  >
+                    <TemplateCover template={t} />
+                    <p className="mt-1 truncate text-[12px] font-semibold leading-tight">
+                      {t.name}
+                    </p>
+                    <p className="truncate text-[11px] text-ig-muted">
+                      {t.description}
+                    </p>
+                  </Link>
+                  <div className="absolute right-1 top-1 flex gap-1">
+                    <Link
+                      href={`/reels/templates/new?t=${encodeURIComponent(t.id)}`}
+                      aria-label={`Edit template ${t.name}`}
+                      className="rounded-full bg-black/55 p-1 text-white"
+                    >
+                      <Pencil size={12} />
+                    </Link>
+                    <button
+                      onClick={() => deleteTemplate(t.id)}
+                      aria-label={`Delete template ${t.name}`}
+                      className="rounded-full bg-black/55 p-1 text-white"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {drafts.length > 0 && !query && category === "all" && (
           <div className="mb-5">
             <p className="text-[13px] font-semibold">Your drafts</p>

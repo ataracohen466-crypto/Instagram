@@ -14,7 +14,9 @@ import { Post } from "@/lib/types";
 import PostMediaCarousel from "./PostMediaCarousel";
 import { postSlides } from "@/lib/postMedia";
 import { useApp, MY_ID, uid } from "@/lib/store";
-import { avatarUrl } from "@/lib/seed";
+import { avatarUrl, photoUrl } from "@/lib/seed";
+import { getMediaUrl } from "@/lib/media";
+import { shareFile, safeFilename, extensionFor } from "@/lib/share";
 import { timeAgo } from "@/lib/time";
 import { generateComments } from "@/lib/aiClient";
 
@@ -32,6 +34,7 @@ export default function PostCard({ post }: { post: Post }) {
   const [burst, setBurst] = useState(false);
   const [replying, setReplying] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const lastTap = useRef(0);
 
   const liked = post.likedBy.includes(MY_ID);
@@ -87,6 +90,36 @@ export default function PostCard({ post }: { post: Post }) {
       // Network hiccup — the user's own comment is already saved.
     } finally {
       setReplying(false);
+    }
+  }
+
+  /** Hands the post's first slide to the OS share sheet, or downloads it. */
+  async function shareOut() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const slide = slides[0];
+      const url = slide.mediaId
+        ? await getMediaUrl(slide.mediaId)
+        : slide.url ?? photoUrl(slide.seed ?? post.imageSeed, 1080);
+      if (!url) return;
+      const blob = await (await fetch(url)).blob();
+      const result = await shareFile({
+        blob,
+        filename: safeFilename(
+          post.caption || "post",
+          extensionFor(blob, slide.kind === "video" ? "mp4" : "jpg")
+        ),
+        title: post.caption || "Post",
+        text: post.caption || undefined,
+      });
+      if (result === "downloaded") {
+        alert("Saved to your downloads — share it from there.");
+      }
+    } catch {
+      alert("Couldn't prepare that post for sharing.");
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -185,9 +218,14 @@ export default function PostCard({ post }: { post: Post }) {
         <button onClick={() => setShowAll(true)} aria-label="Comment">
           <MessageCircle size={24} strokeWidth={1.8} className="-scale-x-100" />
         </button>
-        <Link href="/messages" aria-label="Share">
+        <button
+          onClick={shareOut}
+          disabled={sharing}
+          aria-label="Share post outside the app"
+          className="disabled:opacity-50"
+        >
           <Send size={24} strokeWidth={1.8} />
-        </Link>
+        </button>
         <button className="ml-auto" aria-label="Save">
           <Bookmark size={24} strokeWidth={1.8} />
         </button>

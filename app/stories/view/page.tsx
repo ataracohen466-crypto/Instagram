@@ -2,11 +2,12 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { X, Trash2 } from "lucide-react";
+import { X, Trash2, Send } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { avatarUrl } from "@/lib/seed";
 import { getMediaUrl } from "@/lib/media";
 import { buildStoryFeed, storyThumbUrl, StoryItem } from "@/lib/stories";
+import { shareFile, safeFilename, extensionFor, madeOn } from "@/lib/share";
 
 const IMAGE_MS = 5000;
 
@@ -108,6 +109,7 @@ function StoryViewer() {
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [sharing, setSharing] = useState(false);
   const rafRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
 
@@ -116,6 +118,33 @@ function StoryViewer() {
 
   function close() {
     router.back();
+  }
+
+  async function shareItem(target: StoryItem) {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const url = target.mediaId
+        ? await getMediaUrl(target.mediaId)
+        : storyThumbUrl(target);
+      if (!url) return;
+      const blob = await (await fetch(url)).blob();
+      const result = await shareFile({
+        blob,
+        filename: safeFilename(
+          "story",
+          extensionFor(blob, target.kind === "video" ? "mp4" : "jpg")
+        ),
+        title: "Story",
+      });
+      if (result === "downloaded") {
+        alert("Saved to your downloads — share it from there.");
+      }
+    } catch {
+      /* nothing to share if the clip can't be read */
+    } finally {
+      setSharing(false);
+    }
   }
 
   function goToOwner(delta: number) {
@@ -248,8 +277,18 @@ function StoryViewer() {
                 {entry.username}
               </span>
               <span className="text-xs text-white/70">{timeAgo(item.createdAt)}</span>
+              <span className="text-[11px] text-white/50">·</span>
+              <span className="text-[11px] text-white/60">{madeOn(item.createdAt)}</span>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => shareItem(item)}
+                disabled={sharing}
+                aria-label="Share story outside the app"
+                className="text-white disabled:opacity-50"
+              >
+                <Send size={19} />
+              </button>
               {entry.isMine && (
                 <button
                   onClick={() => removeStoryItem(item.id)}
