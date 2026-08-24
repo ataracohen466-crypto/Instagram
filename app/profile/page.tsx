@@ -256,7 +256,10 @@ function ProfileBody() {
   const avatarSeed = isMe ? profile!.avatarSeed : persona!.avatarSeed;
   const bio = isMe ? profile!.bio : persona!.bio;
 
-  const myPosts = posts.filter((p) => p.authorUsername === username);
+  const allMine = posts.filter((p) => p.authorUsername === username);
+  const myPosts = allMine.filter((p) => !p.archived);
+  // Unshared posts are only ever your own, and only shown to you.
+  const unshared = isMe ? allMine.filter((p) => p.archived) : [];
   const followers = isMe
     ? myPosts.reduce((n, p) => n + p.likedBy.length, 0)
     : 40_000 + (persona!.username.length * 8123) % 900_000;
@@ -380,6 +383,31 @@ function ProfileBody() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {unshared.length > 0 && (
+        <div className="mt-6">
+          <p className="px-3 text-[13px] font-semibold">Unshared</p>
+          <p className="px-3 pb-2 text-[11px] text-ig-muted">
+            Only you can see these. Tap one to edit and share it again.
+          </p>
+          <div className="grid grid-cols-3 gap-[2px]">
+            {unshared.map((p) => (
+              <Link
+                key={p.id}
+                href={`/create?edit=${encodeURIComponent(p.id)}`}
+                className="relative aspect-square bg-ig-bg"
+              >
+                <div className="h-full w-full opacity-40">
+                  <GridThumb post={p} />
+                </div>
+                <span className="absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-center text-[10px] font-semibold text-white">
+                  Unshared
+                </span>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -9,6 +9,7 @@ import { buildSeedFeed, uid } from "./seed";
 import type { Reel } from "./reels";
 import { buildSeedReels } from "./reels";
 import type { StoryItem } from "./stories";
+import { STORY_LIFETIME_MS } from "./stories";
 import type { ReelDraft } from "./drafts";
 
 interface AppState {
@@ -18,12 +19,18 @@ interface AppState {
   reels: Reel[];
   myStory: StoryItem[];
   drafts: ReelDraft[];
+  /** Sound preference for the reels feed, remembered across reels. */
+  reelsMuted: boolean;
   chats: Record<string, ChatMessage[]>;
   setProfile: (profile: Profile) => void;
   addStoryItem: (item: StoryItem) => void;
   removeStoryItem: (id: string) => void;
   saveDraft: (draft: ReelDraft) => void;
   deleteDraft: (id: string) => void;
+  setReelsMuted: (muted: boolean) => void;
+  pruneStories: () => string[];
+  setPostArchived: (postId: string, archived: boolean) => void;
+  updatePost: (postId: string, patch: Partial<Post>) => void;
   resetEverything: () => void;
   toggleLike: (postId: string) => void;
   addComment: (postId: string, comment: Comment) => void;
@@ -85,13 +92,14 @@ export function unbindVault(): void {
 
 export const useApp = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       hydrated: false,
       profile: null,
       posts: [],
       reels: [],
       myStory: [],
       drafts: [],
+      reelsMuted: true,
       chats: {},
 
       markHydrated: () => set({ hydrated: true }),
@@ -120,6 +128,45 @@ export const useApp = create<AppState>()(
 
       deleteDraft: (id) =>
         set((state) => ({ drafts: state.drafts.filter((d) => d.id !== id) })),
+
+      setReelsMuted: (muted) => set({ reelsMuted: muted }),
+
+      /**
+       * Drops story items past their 24 hours and reports the media ids that
+       * went with them, so the caller can free the encrypted blobs too —
+       * filtering them out of the UI alone would leave the clips on disk
+       * forever.
+       */
+      pruneStories: () => {
+        const now = Date.now();
+        const state = get();
+        const expired = state.myStory.filter(
+          (item) => now - item.createdAt >= STORY_LIFETIME_MS
+        );
+        if (expired.length === 0) return [];
+        set({
+          myStory: state.myStory.filter(
+            (item) => now - item.createdAt < STORY_LIFETIME_MS
+          ),
+        });
+        return expired
+          .map((item) => item.mediaId)
+          .filter((id): id is string => Boolean(id));
+      },
+
+      setPostArchived: (postId, archived) =>
+        set((state) => ({
+          posts: state.posts.map((p) =>
+            p.id === postId ? { ...p, archived } : p
+          ),
+        })),
+
+      updatePost: (postId, patch) =>
+        set((state) => ({
+          posts: state.posts.map((p) =>
+            p.id === postId ? { ...p, ...patch } : p
+          ),
+        })),
 
       toggleLike: (postId) =>
         set((state) => ({
@@ -201,6 +248,7 @@ export const useApp = create<AppState>()(
         reels: state.reels,
         myStory: state.myStory,
         drafts: state.drafts,
+        reelsMuted: state.reelsMuted,
         chats: state.chats,
       }),
       onRehydrateStorage: () => (state) => {

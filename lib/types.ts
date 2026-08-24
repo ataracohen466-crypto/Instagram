@@ -45,6 +45,8 @@ export interface Post {
   likedBy: string[];
   comments: Comment[];
   createdAt: number;
+  /** Unshared: kept and editable, but off the feed. */
+  archived?: boolean;
   isMine?: boolean;
 }
 

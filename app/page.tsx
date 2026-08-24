@@ -6,7 +6,9 @@ import PostCard from "@/components/PostCard";
 import { useApp } from "@/lib/store";
 
 export default function FeedPage() {
-  const posts = useApp((s) => s.posts);
+  const allPosts = useApp((s) => s.posts);
+  // Unshared posts stay in the account but off the feed.
+  const posts = allPosts.filter((p) => !p.archived);
 
   return (
     <>

@@ -407,6 +407,9 @@ function Editor() {
       musicMediaId: musicId,
       musicTitle: musicTitle || undefined,
       songCredit: songCredit.trim() || undefined,
+      voiceMediaId: voiceId,
+      voiceVolume,
+      voiceStart,
       isMine: true,
     };
 

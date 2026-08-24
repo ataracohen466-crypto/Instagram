@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ImagePlus,
   Sparkles,
@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { useApp, uid } from "@/lib/store";
 import { photoUrl } from "@/lib/seed";
-import { putMedia } from "@/lib/media";
+import { putMedia, getMediaUrl } from "@/lib/media";
+import { postSlides } from "@/lib/postMedia";
+import { photoUrl as stockPhotoUrl } from "@/lib/seed";
 import { PostMedia } from "@/lib/types";
 import Photo from "@/components/Photo";
 import CameraRecorder from "@/components/CameraRecorder";
@@ -71,13 +73,20 @@ interface Draft {
   blob?: Blob;
   /** Set for stock picks, which need no encrypting. */
   stockSeed?: string;
+  /** Already in the media store — reused as-is when re-sharing an edit. */
+  existingMediaId?: string;
 }
 
-export default function CreatePage() {
+function Composer() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
   const profile = useApp((s) => s.profile);
   const addPost = useApp((s) => s.addPost);
   const addComment = useApp((s) => s.addComment);
+  const posts = useApp((s) => s.posts);
+  const updatePost = useApp((s) => s.updatePost);
+  const editing = editId ? posts.find((p) => p.id === editId) : undefined;
 
   const fileInput = useRef<HTMLInputElement>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -87,6 +96,41 @@ export default function CreatePage() {
   const [suggesting, setSuggesting] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pull an unshared post back into the composer exactly as it was.
+  const loadedRef = useRef(false);
+  useEffect(() => {
+    if (!editing || loadedRef.current) return;
+    loadedRef.current = true;
+    setCaption(editing.caption);
+    (async () => {
+      const slides = postSlides(editing);
+      const restored: Draft[] = [];
+      for (const slide of slides) {
+        if (slide.mediaId) {
+          const url = await getMediaUrl(slide.mediaId);
+          if (url)
+            restored.push({
+              id: slide.id,
+              kind: slide.kind,
+              previewUrl: url,
+              existingMediaId: slide.mediaId,
+            });
+        } else if (slide.url) {
+          restored.push({ id: slide.id, kind: slide.kind, previewUrl: slide.url });
+        } else if (slide.seed) {
+          restored.push({
+            id: slide.id,
+            kind: "image",
+            previewUrl: stockPhotoUrl(slide.seed, 1080),
+            stockSeed: slide.seed,
+          });
+        }
+      }
+      setDrafts(restored);
+      setIndex(0);
+    })();
+  }, [editing]);
 
   const current = drafts[index];
   const room = MAX_SLIDES - drafts.length;
@@ -174,6 +218,14 @@ export default function CreatePage() {
         out.push({ id: draft.id, kind: "image", seed: draft.stockSeed });
         continue;
       }
+      if (draft.existingMediaId) {
+        out.push({
+          id: draft.id,
+          kind: draft.kind,
+          mediaId: draft.existingMediaId,
+        });
+        continue;
+      }
       if (!draft.blob) continue;
 
       if (draft.kind === "video") {
@@ -203,6 +255,18 @@ export default function CreatePage() {
     } catch {
       setError("Couldn't save that media. Try fewer or smaller files.");
       setPosting(false);
+      return;
+    }
+
+    if (editing) {
+      // Re-sharing an edit keeps the post's likes and comments, and puts it
+      // back on the feed.
+      updatePost(editing.id, {
+        media: media.length ? media : undefined,
+        caption: caption.trim(),
+        archived: false,
+      });
+      router.push("/");
       return;
     }
 
@@ -251,13 +315,15 @@ export default function CreatePage() {
         <button onClick={() => router.back()} aria-label="Cancel">
           <X size={24} />
         </button>
-        <p className="text-base font-semibold">New post</p>
+        <p className="text-base font-semibold">
+          {editing ? "Edit post" : "New post"}
+        </p>
         <button
           onClick={share}
           disabled={posting}
           className="text-sm font-semibold text-ig-blue disabled:opacity-40"
         >
-          {posting ? "Sharing…" : "Share"}
+          {posting ? "Sharing…" : editing ? "Share again" : "Share"}
         </button>
       </div>
 
@@ -454,5 +520,13 @@ export default function CreatePage() {
         />
       )}
     </div>
+  );
+}
+
+export default function CreatePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <Composer />
+    </Suspense>
   );
 }

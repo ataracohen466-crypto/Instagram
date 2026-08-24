@@ -1,5 +1,6 @@
 import type { FilterId, TransitionId } from "./reelTemplates";
-import type { ReelFrame } from "./reels";
+import type { Reel, ReelFrame } from "./reels";
+import { uid } from "./seed";
 
 /**
  * A reel saved mid-edit.
@@ -37,4 +38,35 @@ export function filledSlots(draft: ReelDraft): number {
 
 export function draftLength(draft: ReelDraft): number {
   return draft.frames.reduce((n, f) => n + f.seconds, 0);
+}
+
+/**
+ * Turns a published reel back into an editable draft.
+ *
+ * Unsharing shouldn't cost you the edit, so everything the editor needs comes
+ * back: clips and their trims, look, caption, music and narration. The
+ * exported video itself is dropped — sharing again re-renders it from these.
+ */
+export function draftFromReel(reel: Reel): ReelDraft | null {
+  if (!reel.templateId || !reel.frames) return null;
+  return {
+    id: uid("draft"),
+    templateId: reel.templateId,
+    templateName: reel.templateName ?? reel.templateId,
+    frames: reel.frames,
+    filter: reel.filter ?? "none",
+    transition: reel.transition ?? "fade",
+    caption: reel.caption ?? "",
+    musicMediaId: reel.musicMediaId,
+    musicTitle: reel.musicTitle,
+    musicVolume: 0.65,
+    musicStart: 0,
+    musicDuration: 0,
+    songCredit: reel.songCredit,
+    voiceMediaId: reel.voiceMediaId,
+    voiceVolume: reel.voiceVolume ?? 1,
+    voiceDuration: 0,
+    voiceStart: reel.voiceStart ?? 0,
+    updatedAt: Date.now(),
+  };
 }

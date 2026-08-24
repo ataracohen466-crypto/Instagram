@@ -11,8 +11,11 @@ import {
   Volume2,
   VolumeX,
   Trash2,
+  PencilLine,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Reel, ReelFrame } from "@/lib/reels";
+import { draftFromReel } from "@/lib/drafts";
 import { Comment } from "@/lib/types";
 import { useApp, MY_ID, uid } from "@/lib/store";
 import { avatarUrl, photoUrl } from "@/lib/seed";
@@ -56,6 +59,11 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const toggleReelLike = useApp((s) => s.toggleReelLike);
   const addReelComment = useApp((s) => s.addReelComment);
   const deleteReel = useApp((s) => s.deleteReel);
+  const saveDraft = useApp((s) => s.saveDraft);
+  // Shared so unmuting one reel keeps sound on as you scroll to the next.
+  const muted = useApp((s) => s.reelsMuted);
+  const setReelsMuted = useApp((s) => s.setReelsMuted);
+  const router = useRouter();
   const setReelVideo = useApp((s) => s.setReelVideo);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,7 +72,6 @@ export default function ReelCard({ reel }: { reel: Reel }) {
 
   const [active, setActive] = useState(false);
   const [frame, setFrame] = useState(0);
-  const [muted, setMuted] = useState(true);
   const [burst, setBurst] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState("");
@@ -333,7 +340,7 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       <button
         onClick={(e) => {
           e.stopPropagation();
-          setMuted((m) => !m);
+          setReelsMuted(!muted);
         }}
         aria-label={muted ? "Unmute" : "Mute"}
         className="absolute right-3 top-[62px] z-10 rounded-full bg-black/30 p-1.5 text-white"
@@ -366,14 +373,34 @@ export default function ReelCard({ reel }: { reel: Reel }) {
           <Send size={25} />
         </button>
         {reel.isMine ? (
-          <button
-            onClick={() => {
-              if (confirm("Delete this reel?")) deleteReel(reel.id);
-            }}
-            aria-label="Delete reel"
-          >
-            <Trash2 size={24} />
-          </button>
+          <>
+            {reel.templateId && reel.frames && (
+              <button
+                onClick={() => {
+                  const draft = draftFromReel(reel);
+                  if (!draft) return;
+                  saveDraft(draft);
+                  deleteReel(reel.id);
+                  router.push(
+                    `/reels/edit?t=${encodeURIComponent(
+                      draft.templateId
+                    )}&d=${encodeURIComponent(draft.id)}`
+                  );
+                }}
+                aria-label="Unshare and edit reel"
+              >
+                <PencilLine size={24} />
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (confirm("Delete this reel?")) deleteReel(reel.id);
+              }}
+              aria-label="Delete reel"
+            >
+              <Trash2 size={24} />
+            </button>
+          </>
         ) : (
           <button aria-label="Save">
             <Bookmark size={25} />

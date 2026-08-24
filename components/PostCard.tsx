@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Heart,
@@ -22,6 +23,8 @@ export default function PostCard({ post }: { post: Post }) {
   const toggleLike = useApp((s) => s.toggleLike);
   const addComment = useApp((s) => s.addComment);
   const deletePost = useApp((s) => s.deletePost);
+  const setPostArchived = useApp((s) => s.setPostArchived);
+  const router = useRouter();
 
   const [draft, setDraft] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -129,12 +132,23 @@ export default function PostCard({ post }: { post: Post }) {
           {menuOpen && (
             <div className="absolute right-0 top-6 z-20 w-36 overflow-hidden rounded-lg border border-ig-border bg-white text-sm shadow-lg">
               {post.isMine ? (
-                <button
-                  onClick={() => deletePost(post.id)}
-                  className="w-full px-4 py-2.5 text-left font-semibold text-ig-red"
-                >
-                  Delete
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      setPostArchived(post.id, true);
+                      router.push(`/create?edit=${encodeURIComponent(post.id)}`);
+                    }}
+                    className="w-full px-4 py-2.5 text-left font-semibold"
+                  >
+                    Unshare &amp; edit
+                  </button>
+                  <button
+                    onClick={() => deletePost(post.id)}
+                    className="w-full px-4 py-2.5 text-left font-semibold text-ig-red"
+                  >
+                    Delete
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={() => setMenuOpen(false)}

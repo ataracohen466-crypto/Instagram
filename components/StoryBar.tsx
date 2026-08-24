@@ -1,17 +1,39 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PERSONAS } from "@/lib/personas";
 import { useApp } from "@/lib/store";
 import { avatarUrl } from "@/lib/seed";
 import { activeItems } from "@/lib/stories";
+import { deleteMedia } from "@/lib/media";
 
 export default function StoryBar() {
   const router = useRouter();
   const profile = useApp((s) => s.profile);
   const myStory = useApp((s) => s.myStory);
+  const pruneStories = useApp((s) => s.pruneStories);
   const hasMyStory = activeItems(myStory).length > 0;
+
+  /**
+   * Expired items are already hidden by activeItems, but they'd sit in the
+   * vault forever with their clips still on disk. The feed is the one screen
+   * every session lands on, so the sweep runs from here.
+   */
+  useEffect(() => {
+    const sweep = () => {
+      pruneStories().forEach((id) => {
+        deleteMedia(id).catch(() => {
+          /* the record is gone from state either way */
+        });
+      });
+    };
+    sweep();
+    // Catches a story ageing out while the app is left open.
+    const timer = setInterval(sweep, 5 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [pruneStories]);
 
   return (
     <div className="no-scrollbar flex gap-4 overflow-x-auto border-b border-ig-border bg-white px-4 py-3">

@@ -48,6 +48,10 @@ export interface Reel {
   /** A free-text "Song · Artist" credit shown on the reel. Display only —
    * no audio is attached or played for it. */
   songCredit?: string;
+  /** Narration mixed into the exported video. */
+  voiceMediaId?: string;
+  voiceVolume?: number;
+  voiceStart?: number;
   /** Present on reels the user built from a template. */
   frames?: ReelFrame[];
   templateId?: string;
