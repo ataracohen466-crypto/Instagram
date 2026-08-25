@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { X, Camera, ImagePlus, Check } from "lucide-react";
+import { X, Camera, ImagePlus, Check, Music2 } from "lucide-react";
 import { useApp, uid } from "@/lib/store";
 import { downscale } from "@/lib/image";
 import { putMedia } from "@/lib/media";
@@ -26,9 +26,15 @@ export default function CreateStoryPage() {
   const addStoryItem = useApp((s) => s.addStoryItem);
 
   const fileInput = useRef<HTMLInputElement>(null);
+  const musicInput = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<Staged[]>([]);
   const [showCamera, setShowCamera] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [musicId, setMusicId] = useState<string | undefined>();
+  const [musicTitle, setMusicTitle] = useState("");
+  const [musicDuration, setMusicDuration] = useState(0);
+  const [musicStart, setMusicStart] = useState(0);
+  const [musicVolume, setMusicVolume] = useState(0.8);
   const [error, setError] = useState<string | null>(null);
 
   function stage(blob: Blob, kind: "video" | "image") {
@@ -53,6 +59,22 @@ export default function CreateStoryPage() {
     });
   }
 
+  async function pickMusic(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    try {
+      const record = await putMedia(file, "audio");
+      setMusicId(record.id);
+      setMusicTitle(file.name.replace(/\.[^.]+$/, ""));
+      setMusicDuration(record.duration || 0);
+      setMusicStart(0);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Couldn't use that audio file."
+      );
+    }
+  }
+
   async function share() {
     if (!items.length || sharing) return;
     setSharing(true);
@@ -67,6 +89,10 @@ export default function CreateStoryPage() {
             mediaId: record.id,
             duration: record.duration || 0,
             createdAt: Date.now(),
+            musicMediaId: musicId,
+            musicTitle: musicTitle || undefined,
+            musicStart,
+            musicVolume,
           });
         } else {
           const dataUrl = await downscale(item.blob, STORY_ASPECT);
@@ -78,6 +104,10 @@ export default function CreateStoryPage() {
             mediaId: record.id,
             duration: 5,
             createdAt: Date.now(),
+            musicMediaId: musicId,
+            musicTitle: musicTitle || undefined,
+            musicStart,
+            musicVolume,
           });
         }
       }
@@ -132,6 +162,99 @@ export default function CreateStoryPage() {
           e.target.value = "";
         }}
       />
+
+      <input
+        ref={musicInput}
+        type="file"
+        accept="audio/*"
+        hidden
+        onChange={(e) => {
+          pickMusic(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+
+      <div className="px-4 pb-1">
+        <div className="rounded-xl border border-ig-border p-3">
+          {musicId ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Music2 size={15} className="shrink-0 text-ig-muted" />
+                <p className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                  {musicTitle}
+                </p>
+                <button
+                  onClick={() => {
+                    setMusicId(undefined);
+                    setMusicTitle("");
+                    setMusicDuration(0);
+                    setMusicStart(0);
+                  }}
+                  aria-label="Remove music"
+                  className="text-ig-muted"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="mt-2.5 flex items-center gap-2">
+                <span className="w-12 shrink-0 text-[11px] text-ig-muted">
+                  Volume
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={musicVolume}
+                  onChange={(e) => setMusicVolume(Number(e.target.value))}
+                  className="h-1 flex-1 accent-ig-blue"
+                />
+                <span className="w-9 text-right text-[11px] tabular-nums text-ig-muted">
+                  {Math.round(musicVolume * 100)}%
+                </span>
+              </div>
+
+              {musicDuration > 1 && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="w-12 shrink-0 text-[11px] text-ig-muted">
+                    Start
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(musicDuration - 1, 0)}
+                    step={0.5}
+                    value={Math.min(musicStart, Math.max(musicDuration - 1, 0))}
+                    onChange={(e) => setMusicStart(Number(e.target.value))}
+                    className="h-1 flex-1 accent-ig-blue"
+                  />
+                  <span className="w-9 text-right text-[11px] tabular-nums text-ig-muted">
+                    {musicStart.toFixed(1)}s
+                  </span>
+                </div>
+              )}
+
+              <p className="mt-1.5 text-[11px] leading-4 text-ig-muted">
+                Plays across every item you post now, carrying on from one to
+                the next instead of restarting. Videos play muted under it.
+              </p>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => musicInput.current?.click()}
+                className="flex items-center gap-2 text-[13px] font-semibold text-ig-blue"
+              >
+                <Music2 size={15} /> Add music
+              </button>
+              <p className="mt-1.5 text-[11px] leading-4 text-ig-muted">
+                Pick an audio file from this device to play over your story.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
 
       {items.length === 0 ? (
         <div className="px-8 py-16 text-center text-sm text-ig-muted">

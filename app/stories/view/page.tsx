@@ -2,11 +2,16 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { X, Trash2, Send } from "lucide-react";
+import { X, Trash2, Send, Music2, Volume2, VolumeX } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { avatarUrl } from "@/lib/seed";
 import { getMediaUrl } from "@/lib/media";
-import { buildStoryFeed, storyThumbUrl, StoryItem } from "@/lib/stories";
+import {
+  buildStoryFeed,
+  storyThumbUrl,
+  musicOffsetFor,
+  StoryItem,
+} from "@/lib/stories";
 import { shareFile, safeFilename, extensionFor, madeOn } from "@/lib/share";
 
 const IMAGE_MS = 5000;
@@ -47,11 +52,13 @@ function StoryItemMedia({
   playing,
   onVideoRef,
   onEnded,
+  forceMuted,
 }: {
   item: StoryItem;
   playing: boolean;
   onVideoRef: (el: HTMLVideoElement | null) => void;
   onEnded: () => void;
+  forceMuted: boolean;
 }) {
   const [url, setUrl] = useState<string | null>(null);
 
@@ -77,6 +84,7 @@ function StoryItemMedia({
         src={url ?? undefined}
         autoPlay={playing}
         playsInline
+        muted={forceMuted}
         className="h-full w-full object-contain"
         onEnded={onEnded}
       />
@@ -110,6 +118,9 @@ function StoryViewer() {
   const [paused, setPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [audioMuted, setAudioMuted] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const rafRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
 
@@ -212,6 +223,56 @@ function StoryViewer() {
     else v.play().catch(() => {});
   }, [paused, item]);
 
+  // Decrypt the track behind the current item.
+  useEffect(() => {
+    let cancelled = false;
+    const id = item?.musicMediaId;
+    if (!id) {
+      setMusicUrl(null);
+      return;
+    }
+    getMediaUrl(id).then((url) => {
+      if (!cancelled) setMusicUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [item?.musicMediaId]);
+
+  /**
+   * Seeks the track to where this item picks up and plays it.
+   *
+   * Runs on the item index rather than the url so moving between items that
+   * share a song re-seeks instead of starting it over.
+   */
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !musicUrl || !item?.musicMediaId) return;
+
+    audio.volume = item.musicVolume ?? 0.8;
+    const offset = musicOffsetFor(entry?.items ?? [], itemIndex);
+
+    const start = () => {
+      // A track shorter than the story wraps rather than falling silent.
+      audio.currentTime = audio.duration ? offset % audio.duration : offset;
+      if (!paused) audio.play().catch(() => {});
+    };
+
+    if (audio.readyState >= 1) start();
+    else audio.addEventListener("loadedmetadata", start, { once: true });
+
+    return () => audio.removeEventListener("loadedmetadata", start);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [musicUrl, ownerIndex, itemIndex]);
+
+  // Holding to pause the story should hold the music too.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (paused) audio.pause();
+    else if (musicUrl) audio.play().catch(() => {});
+  }, [paused, musicUrl]);
+
   // Keeps the pointer in range when the current owner's item count shrinks
   // (deleting a story item) or the owner's entry disappears entirely.
   useEffect(() => {
@@ -241,7 +302,28 @@ function StoryViewer() {
             videoRef.current = el;
           }}
           onEnded={() => goToItem(1)}
+          forceMuted={Boolean(item.musicMediaId) && !audioMuted}
         />
+
+        {item.musicMediaId && musicUrl && (
+          /* eslint-disable-next-line jsx-a11y/media-has-caption */
+          <audio
+            ref={audioRef}
+            src={musicUrl}
+            loop
+            muted={audioMuted}
+            className="hidden"
+          />
+        )}
+
+        {item.musicTitle && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center px-6">
+            <span className="flex max-w-full items-center gap-1.5 truncate rounded-full bg-black/50 px-3 py-1.5 text-[12px] text-white">
+              <Music2 size={13} className="shrink-0" />
+              <span className="truncate">{item.musicTitle}</span>
+            </span>
+          </div>
+        )}
 
         {/* Tap zones */}
         <button
@@ -290,6 +372,15 @@ function StoryViewer() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
+              {item.musicMediaId && (
+                <button
+                  onClick={() => setAudioMuted((v) => !v)}
+                  aria-label={audioMuted ? "Unmute story music" : "Mute story music"}
+                  className="text-white"
+                >
+                  {audioMuted ? <VolumeX size={19} /> : <Volume2 size={19} />}
+                </button>
+              )}
               <button
                 onClick={() => shareItem(item)}
                 disabled={sharing}

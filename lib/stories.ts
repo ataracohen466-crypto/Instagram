@@ -15,6 +15,32 @@ export interface StoryItem {
   /** Seconds an image holds for; a video plays its own real length. */
   duration: number;
   createdAt: number;
+  /** Track laid over this item, shared by everything posted together. */
+  musicMediaId?: string;
+  musicTitle?: string;
+  /** Seconds into the track the whole story starts from. */
+  musicStart?: number;
+  musicVolume?: number;
+}
+
+/**
+ * Where in the track this item should pick up.
+ *
+ * Items posted together share one song, so restarting it on each of them
+ * would loop the same few seconds. Instead each item continues from where
+ * the previous one left off, which makes a run of photos feel like one take.
+ */
+export function musicOffsetFor(items: StoryItem[], index: number): number {
+  const item = items[index];
+  if (!item?.musicMediaId) return 0;
+
+  let offset = item.musicStart ?? 0;
+  for (let i = index - 1; i >= 0; i--) {
+    const prev = items[i];
+    if (prev.musicMediaId !== item.musicMediaId) break;
+    offset += prev.kind === "image" ? 5 : prev.duration || 0;
+  }
+  return offset;
 }
 
 export function isActive(item: StoryItem, now = Date.now()): boolean {
