@@ -35,6 +35,8 @@ export default function CreateStoryPage() {
   const [musicDuration, setMusicDuration] = useState(0);
   const [musicStart, setMusicStart] = useState(0);
   const [musicVolume, setMusicVolume] = useState(0.8);
+  const [musicBusy, setMusicBusy] = useState(false);
+  const [musicError, setMusicError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function stage(blob: Blob, kind: "video" | "image") {
@@ -61,7 +63,8 @@ export default function CreateStoryPage() {
 
   async function pickMusic(file: File | undefined) {
     if (!file) return;
-    setError(null);
+    setMusicError(null);
+    setMusicBusy(true);
     try {
       const record = await putMedia(file, "audio");
       setMusicId(record.id);
@@ -69,9 +72,11 @@ export default function CreateStoryPage() {
       setMusicDuration(record.duration || 0);
       setMusicStart(0);
     } catch (err) {
-      setError(
+      setMusicError(
         err instanceof Error ? err.message : "Couldn't use that audio file."
       );
+    } finally {
+      setMusicBusy(false);
     }
   }
 
@@ -166,7 +171,7 @@ export default function CreateStoryPage() {
       <input
         ref={musicInput}
         type="file"
-        accept="audio/*"
+        accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.flac,.aif,.aiff,.caf,.weba"
         hidden
         onChange={(e) => {
           pickMusic(e.target.files?.[0]);
@@ -244,13 +249,17 @@ export default function CreateStoryPage() {
             <>
               <button
                 onClick={() => musicInput.current?.click()}
-                className="flex items-center gap-2 text-[13px] font-semibold text-ig-blue"
+                disabled={musicBusy}
+                className="flex items-center gap-2 text-[13px] font-semibold text-ig-blue disabled:opacity-50"
               >
-                <Music2 size={15} /> Add music
+                <Music2 size={15} /> {musicBusy ? "Adding music…" : "Add music"}
               </button>
               <p className="mt-1.5 text-[11px] leading-4 text-ig-muted">
                 Pick an audio file from this device to play over your story.
               </p>
+              {musicError && (
+                <p className="mt-1.5 text-[11px] text-ig-red">{musicError}</p>
+              )}
             </>
           )}
         </div>

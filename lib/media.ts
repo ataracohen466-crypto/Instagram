@@ -93,40 +93,59 @@ export function mediaId(): string {
  * standard workaround: seek near the end, which forces the browser to
  * scan the file and resolve the true duration, then seek back to 0.
  */
-export function probeDuration(file: Blob): Promise<number> {
+export function probeDuration(
+  file: Blob,
+  kind: "video" | "audio" = "video"
+): Promise<number> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
-    const v = document.createElement("video");
-    v.preload = "metadata";
-    v.muted = true;
+    // Audio probed through a <video> element stalls on some browsers — most
+    // reliably on iOS — so give a track the element it belongs in.
+    const el =
+      kind === "audio"
+        ? document.createElement("audio")
+        : document.createElement("video");
+    el.preload = "metadata";
+    el.muted = true;
 
+    let settled = false;
     const finish = (d: number) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(overall);
       URL.revokeObjectURL(url);
-      resolve(d);
+      resolve(Number.isFinite(d) && d > 0 ? d : 0);
     };
 
-    v.onloadedmetadata = () => {
-      if (Number.isFinite(v.duration)) {
-        finish(v.duration);
+    /**
+     * A format the browser can't decode often just stalls: no metadata, no
+     * error, nothing. Without this the promise never settles and the whole
+     * upload hangs with no feedback, so the length is given up on instead.
+     */
+    const overall = setTimeout(() => finish(0), 12_000);
+
+    el.onloadedmetadata = () => {
+      if (Number.isFinite(el.duration)) {
+        finish(el.duration);
         return;
       }
       // Headerless duration — force a scan by seeking past the true end.
-      v.currentTime = 1e9;
+      el.currentTime = 1e9;
       const onSeeked = () => {
-        v.removeEventListener("timeupdate", onSeeked);
-        const d = Number.isFinite(v.duration) ? v.duration : 0;
-        v.currentTime = 0;
+        el.removeEventListener("timeupdate", onSeeked);
+        const d = Number.isFinite(el.duration) ? el.duration : 0;
+        el.currentTime = 0;
         finish(d);
       };
-      v.addEventListener("timeupdate", onSeeked);
+      el.addEventListener("timeupdate", onSeeked);
       // Some browsers never fire timeupdate for this seek; don't hang forever.
       setTimeout(() => {
-        v.removeEventListener("timeupdate", onSeeked);
-        finish(Number.isFinite(v.duration) ? v.duration : 0);
+        el.removeEventListener("timeupdate", onSeeked);
+        finish(Number.isFinite(el.duration) ? el.duration : 0);
       }, 3000);
     };
-    v.onerror = () => finish(0);
-    v.src = url;
+    el.onerror = () => finish(0);
+    el.src = url;
   });
 }
 
@@ -144,10 +163,11 @@ export async function putMedia(
     );
 
   const duration =
-    kind === "video" || kind === "audio" ? await probeDuration(blob) : 0;
+    kind === "video" || kind === "audio" ? await probeDuration(blob, kind) : 0;
 
   // A zero here means the duration couldn't be read, not that it's short.
-  if (duration > MAX_CLIP_SECONDS)
+  // Only clips are capped — a backing track can run as long as it likes.
+  if (kind === "video" && duration > MAX_CLIP_SECONDS)
     throw new Error(
       `That clip is ${Math.round(duration / 60)} minutes — keep it under ${
         MAX_CLIP_SECONDS / 60

@@ -124,6 +124,8 @@ function Editor() {
   const [voiceDuration, setVoiceDuration] = useState(0);
   const [voiceStart, setVoiceStart] = useState(0);
   const [showVoice, setShowVoice] = useState(false);
+  const [musicBusy, setMusicBusy] = useState(false);
+  const [musicError, setMusicError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
   const fileInput = useRef<HTMLInputElement>(null);
@@ -300,7 +302,8 @@ function Editor() {
 
   async function pickMusic(file: File | undefined) {
     if (!file) return;
-    setError(null);
+    setMusicError(null);
+    setMusicBusy(true);
     try {
       const record = await putMedia(file, "audio");
       setMusicId(record.id);
@@ -308,9 +311,11 @@ function Editor() {
       setMusicDuration(record.duration || 0);
       setMusicStart(0);
     } catch (err) {
-      setError(
+      setMusicError(
         err instanceof Error ? err.message : "That audio file could not be read."
       );
+    } finally {
+      setMusicBusy(false);
     }
   }
 
@@ -860,14 +865,19 @@ function Editor() {
             <>
               <button
                 onClick={() => musicInput.current?.click()}
-                className="flex items-center gap-2 text-[13px] font-semibold text-ig-blue"
+                disabled={musicBusy}
+                className="flex items-center gap-2 text-[13px] font-semibold text-ig-blue disabled:opacity-50"
               >
-                <Music2 size={15} /> Add background music
+                <Music2 size={15} />{" "}
+                {musicBusy ? "Adding music…" : "Add background music"}
               </button>
               <p className="mt-1.5 text-[11px] text-ig-muted">
                 Pick an audio file from this device. It loops to fill the reel
                 and fades out at the end.
               </p>
+              {musicError && (
+                <p className="mt-1.5 text-[11px] text-ig-red">{musicError}</p>
+              )}
             </>
           )}
         </div>
@@ -1004,7 +1014,7 @@ function Editor() {
       <input
         ref={musicInput}
         type="file"
-        accept="audio/*"
+        accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.flac,.aif,.aiff,.caf,.weba"
         hidden
         onChange={(e) => {
           pickMusic(e.target.files?.[0]);
