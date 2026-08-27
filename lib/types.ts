@@ -45,6 +45,10 @@ export interface Post {
   likedBy: string[];
   comments: Comment[];
   createdAt: number;
+  /** A track laid over the post, played while it's on screen. */
+  musicMediaId?: string;
+  musicTitle?: string;
+  musicVolume?: number;
   /** Unshared: kept and editable, but off the feed. */
   archived?: boolean;
   isMine?: boolean;

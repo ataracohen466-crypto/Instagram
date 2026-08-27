@@ -9,6 +9,7 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
+  Music2,
 } from "lucide-react";
 import { useApp, uid } from "@/lib/store";
 import { photoUrl } from "@/lib/seed";
@@ -89,6 +90,7 @@ function Composer() {
   const editing = editId ? posts.find((p) => p.id === editId) : undefined;
 
   const fileInput = useRef<HTMLInputElement>(null);
+  const musicInput = useRef<HTMLInputElement>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [index, setIndex] = useState(0);
   const [showCamera, setShowCamera] = useState(false);
@@ -96,6 +98,11 @@ function Composer() {
   const [suggesting, setSuggesting] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [musicId, setMusicId] = useState<string | undefined>();
+  const [musicTitle, setMusicTitle] = useState("");
+  const [musicVolume, setMusicVolume] = useState(0.8);
+  const [musicBusy, setMusicBusy] = useState(false);
+  const [musicError, setMusicError] = useState<string | null>(null);
 
   // Pull an unshared post back into the composer exactly as it was.
   const loadedRef = useRef(false);
@@ -103,6 +110,9 @@ function Composer() {
     if (!editing || loadedRef.current) return;
     loadedRef.current = true;
     setCaption(editing.caption);
+    setMusicId(editing.musicMediaId);
+    setMusicTitle(editing.musicTitle ?? "");
+    setMusicVolume(editing.musicVolume ?? 0.8);
     (async () => {
       const slides = postSlides(editing);
       const restored: Draft[] = [];
@@ -198,6 +208,23 @@ function Composer() {
     ]);
   }
 
+  async function pickMusic(file: File | undefined) {
+    if (!file) return;
+    setMusicError(null);
+    setMusicBusy(true);
+    try {
+      const record = await putMedia(file, "audio");
+      setMusicId(record.id);
+      setMusicTitle(file.name.replace(/\.[^.]+$/, ""));
+    } catch (err) {
+      setMusicError(
+        err instanceof Error ? err.message : "Couldn't use that audio file."
+      );
+    } finally {
+      setMusicBusy(false);
+    }
+  }
+
   async function suggestCaption() {
     setSuggesting(true);
     try {
@@ -264,6 +291,9 @@ function Composer() {
       updatePost(editing.id, {
         media: media.length ? media : undefined,
         caption: caption.trim(),
+        musicMediaId: musicId,
+        musicTitle: musicTitle || undefined,
+        musicVolume,
         archived: false,
       });
       router.push("/");
@@ -277,6 +307,9 @@ function Composer() {
       imageSeed: seed,
       media: media.length ? media : undefined,
       caption: caption.trim(),
+      musicMediaId: musicId,
+      musicTitle: musicTitle || undefined,
+      musicVolume,
       likedBy: [],
       comments: [],
       createdAt: Date.now(),
@@ -479,6 +512,79 @@ function Composer() {
         >
           Surprise me
         </button>
+      </div>
+
+      <input
+        ref={musicInput}
+        type="file"
+        accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.flac,.aif,.aiff,.caf,.weba"
+        hidden
+        onChange={(e) => {
+          pickMusic(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+
+      <div className="px-4 pb-1">
+        <div className="rounded-xl border border-ig-border p-3">
+          {musicId ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Music2 size={15} className="shrink-0 text-ig-muted" />
+                <p className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                  {musicTitle}
+                </p>
+                <button
+                  onClick={() => {
+                    setMusicId(undefined);
+                    setMusicTitle("");
+                  }}
+                  aria-label="Remove music"
+                  className="text-ig-muted"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2">
+                <span className="w-12 shrink-0 text-[11px] text-ig-muted">
+                  Volume
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={musicVolume}
+                  onChange={(e) => setMusicVolume(Number(e.target.value))}
+                  className="h-1 flex-1 accent-ig-blue"
+                />
+                <span className="w-9 text-right text-[11px] tabular-nums text-ig-muted">
+                  {Math.round(musicVolume * 100)}%
+                </span>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-4 text-ig-muted">
+                Plays while the post is on screen. Tap the speaker on the post
+                to hear it — the feed starts muted.
+              </p>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => musicInput.current?.click()}
+                disabled={musicBusy}
+                className="flex items-center gap-2 text-[13px] font-semibold text-ig-blue disabled:opacity-50"
+              >
+                <Music2 size={15} /> {musicBusy ? "Adding music…" : "Add music"}
+              </button>
+              <p className="mt-1.5 text-[11px] leading-4 text-ig-muted">
+                Pick an audio file from this device to play over this post.
+              </p>
+              {musicError && (
+                <p className="mt-1.5 text-[11px] text-ig-red">{musicError}</p>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="px-4">

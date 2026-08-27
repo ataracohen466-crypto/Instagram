@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -9,6 +9,7 @@ import {
   Send,
   Bookmark,
   MoreHorizontal,
+  Music2,
 } from "lucide-react";
 import { Post } from "@/lib/types";
 import PostMediaCarousel from "./PostMediaCarousel";
@@ -36,6 +37,50 @@ export default function PostCard({ post }: { post: Post }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const lastTap = useRef(0);
+
+  const muted = useApp((s) => s.reelsMuted);
+  const cardRef = useRef<HTMLElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [musicUrl, setMusicUrl] = useState<string | null>(null);
+  const [onScreen, setOnScreen] = useState(false);
+
+  // Decrypt the post's track only if it has one.
+  useEffect(() => {
+    let cancelled = false;
+    if (!post.musicMediaId) {
+      setMusicUrl(null);
+      return;
+    }
+    getMediaUrl(post.musicMediaId).then((url) => {
+      if (!cancelled) setMusicUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [post.musicMediaId]);
+
+  /**
+   * Only the post you're actually looking at plays. Without this every post
+   * with a track would sound off at once as the feed scrolls.
+   */
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || !post.musicMediaId) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setOnScreen(entry.isIntersecting && entry.intersectionRatio > 0.6),
+      { threshold: [0, 0.6, 1] }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [post.musicMediaId]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = post.musicVolume ?? 0.8;
+    if (onScreen && !muted) audio.play().catch(() => {});
+    else audio.pause();
+  }, [onScreen, muted, musicUrl, post.musicVolume]);
 
   const liked = post.likedBy.includes(MY_ID);
   const likeCount = post.likedBy.length;
@@ -127,7 +172,7 @@ export default function PostCard({ post }: { post: Post }) {
   const captionLong = post.caption.length > 90;
 
   return (
-    <article className="border-b border-ig-border bg-white pb-3">
+    <article ref={cardRef} className="border-b border-ig-border bg-white pb-3">
       <header className="flex items-center gap-3 px-4 py-3">
         <Link href={`/profile?u=${encodeURIComponent(post.authorUsername)}`}>
           <div className="story-ring h-8 w-8 rounded-full p-[2px]">
@@ -196,7 +241,21 @@ export default function PostCard({ post }: { post: Post }) {
       </header>
 
       <div className="relative">
-        <PostMediaCarousel slides={slides} onTap={onImageTap} />
+        <PostMediaCarousel
+          slides={slides}
+          onTap={onImageTap}
+          hasMusic={Boolean(post.musicMediaId)}
+        />
+        {post.musicMediaId && musicUrl && (
+          /* eslint-disable-next-line jsx-a11y/media-has-caption */
+          <audio ref={audioRef} src={musicUrl} loop className="hidden" />
+        )}
+        {post.musicTitle && (
+          <span className="pointer-events-none absolute bottom-3 left-3 flex max-w-[70%] items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[11px] text-white">
+            <Music2 size={12} className="shrink-0" />
+            <span className="truncate">{post.musicTitle}</span>
+          </span>
+        )}
         {burst && (
           <Heart
             size={96}

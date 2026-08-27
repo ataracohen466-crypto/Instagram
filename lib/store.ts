@@ -22,7 +22,10 @@ interface AppState {
   drafts: ReelDraft[];
   /** Templates the user built themselves. */
   myTemplates: ReelTemplate[];
-  /** Sound preference for the reels feed, remembered across reels. */
+  /**
+   * One sound preference for the whole app — reels, feed posts and
+   * stories all follow it, so muting in one place stays muted everywhere.
+   */
   reelsMuted: boolean;
   chats: Record<string, ChatMessage[]>;
   setProfile: (profile: Profile) => void;

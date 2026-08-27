@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { PostMedia } from "@/lib/types";
 import { getMediaUrl } from "@/lib/media";
+import { useApp } from "@/lib/store";
 import { photoUrl } from "@/lib/seed";
 import Photo from "./Photo";
 
@@ -83,16 +84,22 @@ function SlideMedia({
 export default function PostMediaCarousel({
   slides,
   onTap,
+  hasMusic = false,
 }: {
   slides: PostMedia[];
   onTap?: () => void;
+  /** Shows the speaker even on a photo post, since a track can still play. */
+  hasMusic?: boolean;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
-  const [muted, setMuted] = useState(true);
+  // One sound preference for the whole app, so muting here sticks elsewhere.
+  const muted = useApp((s) => s.reelsMuted);
+  const setMuted = useApp((s) => s.setReelsMuted);
 
   const multiple = slides.length > 1;
   const showsVideo = slides.some((s) => s.kind === "video");
+  const hasSound = showsVideo || hasMusic;
 
   // Derive the active slide from scroll position rather than tracking taps,
   // so a flick that lands between slides still reports the one that settled.
@@ -115,7 +122,11 @@ export default function PostMediaCarousel({
       >
         {slides.map((slide, i) => (
           <div key={slide.id} className="h-full w-full shrink-0 snap-center">
-            <SlideMedia slide={slide} active={i === index} muted={muted} />
+            <SlideMedia
+              slide={slide}
+              active={i === index}
+              muted={muted || hasMusic}
+            />
           </div>
         ))}
       </div>
@@ -126,11 +137,11 @@ export default function PostMediaCarousel({
         </span>
       )}
 
-      {showsVideo && (
+      {hasSound && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setMuted((v) => !v);
+            setMuted(!muted);
           }}
           aria-label={muted ? "Unmute" : "Mute"}
           className="absolute bottom-3 right-3 rounded-full bg-black/60 p-2 text-white"

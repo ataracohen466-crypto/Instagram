@@ -118,7 +118,8 @@ function StoryViewer() {
   const [paused, setPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [sharing, setSharing] = useState(false);
-  const [audioMuted, setAudioMuted] = useState(false);
+  const muted = useApp((s) => s.reelsMuted);
+  const setMuted = useApp((s) => s.setReelsMuted);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -302,7 +303,7 @@ function StoryViewer() {
             videoRef.current = el;
           }}
           onEnded={() => goToItem(1)}
-          forceMuted={Boolean(item.musicMediaId) && !audioMuted}
+          forceMuted={muted || Boolean(item.musicMediaId)}
         />
 
         {item.musicMediaId && musicUrl && (
@@ -311,7 +312,7 @@ function StoryViewer() {
             ref={audioRef}
             src={musicUrl}
             loop
-            muted={audioMuted}
+            muted={muted}
             className="hidden"
           />
         )}
@@ -372,13 +373,13 @@ function StoryViewer() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              {item.musicMediaId && (
+              {(item.musicMediaId || item.kind === "video") && (
                 <button
-                  onClick={() => setAudioMuted((v) => !v)}
-                  aria-label={audioMuted ? "Unmute story music" : "Mute story music"}
+                  onClick={() => setMuted(!muted)}
+                  aria-label={muted ? "Unmute story" : "Mute story"}
                   className="text-white"
                 >
-                  {audioMuted ? <VolumeX size={19} /> : <Volume2 size={19} />}
+                  {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
                 </button>
               )}
               <button
