@@ -48,6 +48,8 @@ export interface Post {
   /** A track laid over the post, played while it's on screen. */
   musicMediaId?: string;
   musicTitle?: string;
+  /** What you type in — shown instead of the file's name. */
+  songCredit?: string;
   musicVolume?: number;
   /** Unshared: kept and editable, but off the feed. */
   archived?: boolean;

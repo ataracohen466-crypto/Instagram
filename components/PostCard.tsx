@@ -21,6 +21,24 @@ import { shareFile, safeFilename, extensionFor } from "@/lib/share";
 import { timeAgo } from "@/lib/time";
 import { generateComments } from "@/lib/aiClient";
 
+/**
+ * The one post whose track is currently sounding.
+ *
+ * Two shorter posts can each be more than half on screen at once, so
+ * visibility alone would let two songs overlap. Whoever starts playing stops
+ * whoever was playing before.
+ */
+let nowPlaying: HTMLAudioElement | null = null;
+
+/**
+ * Starting and stopping around a single visibility cutoff makes the feed
+ * stutter: the ratio hovers on the line while you scroll and the track is
+ * repeatedly started and stopped. Playing needs a clear majority on screen,
+ * and stopping needs it to have clearly left.
+ */
+const PLAY_ABOVE = 0.7;
+const STOP_BELOW = 0.35;
+
 export default function PostCard({ post }: { post: Post }) {
   const profile = useApp((s) => s.profile);
   const toggleLike = useApp((s) => s.toggleLike);
@@ -67,8 +85,14 @@ export default function PostCard({ post }: { post: Post }) {
     const el = cardRef.current;
     if (!el || !post.musicMediaId) return;
     const observer = new IntersectionObserver(
-      ([entry]) => setOnScreen(entry.isIntersecting && entry.intersectionRatio > 0.6),
-      { threshold: [0, 0.6, 1] }
+      ([entry]) => {
+        const ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
+        // Only the crossings matter; in between, whatever it was, it stays.
+        setOnScreen((was) =>
+          ratio >= PLAY_ABOVE ? true : ratio <= STOP_BELOW ? false : was
+        );
+      },
+      { threshold: [0, STOP_BELOW, PLAY_ABOVE, 1] }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -76,11 +100,31 @@ export default function PostCard({ post }: { post: Post }) {
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !musicUrl) return;
     audio.volume = post.musicVolume ?? 0.8;
-    if (onScreen && !muted) audio.play().catch(() => {});
-    else audio.pause();
+
+    if (onScreen && !muted) {
+      if (nowPlaying && nowPlaying !== audio) nowPlaying.pause();
+      nowPlaying = audio;
+      // play() rejects if something pauses it before it gets going, which is
+      // ordinary here — swallow it rather than letting it surface as an error.
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+      if (nowPlaying === audio) nowPlaying = null;
+    }
   }, [onScreen, muted, musicUrl, post.musicVolume]);
+
+  // Leaving the feed shouldn't leave a track playing behind it.
+  useEffect(() => {
+    const audio = audioRef.current;
+    return () => {
+      if (audio) {
+        audio.pause();
+        if (nowPlaying === audio) nowPlaying = null;
+      }
+    };
+  }, [musicUrl]);
 
   const liked = post.likedBy.includes(MY_ID);
   const likeCount = post.likedBy.length;
@@ -250,10 +294,12 @@ export default function PostCard({ post }: { post: Post }) {
           /* eslint-disable-next-line jsx-a11y/media-has-caption */
           <audio ref={audioRef} src={musicUrl} loop className="hidden" />
         )}
-        {post.musicTitle && (
+        {(post.songCredit || post.musicTitle) && (
           <span className="pointer-events-none absolute bottom-3 left-3 flex max-w-[70%] items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[11px] text-white">
             <Music2 size={12} className="shrink-0" />
-            <span className="truncate">{post.musicTitle}</span>
+            <span className="truncate">
+              {post.songCredit || post.musicTitle}
+            </span>
           </span>
         )}
         {burst && (

@@ -100,6 +100,7 @@ function Composer() {
   const [error, setError] = useState<string | null>(null);
   const [musicId, setMusicId] = useState<string | undefined>();
   const [musicTitle, setMusicTitle] = useState("");
+  const [songCredit, setSongCredit] = useState("");
   const [musicVolume, setMusicVolume] = useState(0.8);
   const [musicBusy, setMusicBusy] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
@@ -113,6 +114,7 @@ function Composer() {
     setMusicId(editing.musicMediaId);
     setMusicTitle(editing.musicTitle ?? "");
     setMusicVolume(editing.musicVolume ?? 0.8);
+    setSongCredit(editing.songCredit ?? "");
     (async () => {
       const slides = postSlides(editing);
       const restored: Draft[] = [];
@@ -293,6 +295,7 @@ function Composer() {
         caption: caption.trim(),
         musicMediaId: musicId,
         musicTitle: musicTitle || undefined,
+        songCredit: songCredit.trim() || undefined,
         musicVolume,
         archived: false,
       });
@@ -309,6 +312,7 @@ function Composer() {
       caption: caption.trim(),
       musicMediaId: musicId,
       musicTitle: musicTitle || undefined,
+      songCredit: songCredit.trim() || undefined,
       musicVolume,
       likedBy: [],
       comments: [],
@@ -562,9 +566,16 @@ function Composer() {
                   {Math.round(musicVolume * 100)}%
                 </span>
               </div>
+              <input
+                value={songCredit}
+                onChange={(e) => setSongCredit(e.target.value)}
+                placeholder="Song title · Artist"
+                className="mt-2.5 w-full rounded-lg bg-[#efefef] px-3 py-2 text-[13px] outline-none placeholder:text-ig-muted"
+              />
               <p className="mt-1.5 text-[11px] leading-4 text-ig-muted">
-                Plays while the post is on screen. Tap the speaker on the post
-                to hear it — the feed starts muted.
+                Name the song however you like — that's what shows on the post,
+                instead of the file name. It plays while the post is on screen;
+                tap the speaker to hear it, since the feed starts muted.
               </p>
             </>
           ) : (
