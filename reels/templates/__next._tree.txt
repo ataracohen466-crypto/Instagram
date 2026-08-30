@@ -1,0 +1,3 @@
+:HL["/Instagram/_next/static/chunks/1-lj2t6f7f062.css","style"]
+:HL["https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"reels","param":null,"prefetchHints":4192,"slots":{"children":{"name":"templates","param":null,"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}}}},"staleTime":300,"buildId":"3UmYhzrXIUL8o3biyY7Cy"}
