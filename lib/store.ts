@@ -27,6 +27,13 @@ interface AppState {
    * stories all follow it, so muting in one place stays muted everywhere.
    */
   reelsMuted: boolean;
+  /**
+   * The one feed post close enough to the middle of the screen to count as
+   * the one you're looking at. Only it plays, so scrolling past a run of
+   * video posts doesn't set them all going at once. Deliberately not
+   * persisted — it means nothing on the next visit.
+   */
+  activePostId: string | null;
   chats: Record<string, ChatMessage[]>;
   setProfile: (profile: Profile) => void;
   addStoryItem: (item: StoryItem) => void;
@@ -34,6 +41,9 @@ interface AppState {
   saveDraft: (draft: ReelDraft) => void;
   deleteDraft: (id: string) => void;
   setReelsMuted: (muted: boolean) => void;
+  setActivePost: (postId: string) => void;
+  /** Stands down only if this post is still the active one. */
+  clearActivePost: (postId: string) => void;
   saveTemplate: (template: ReelTemplate) => void;
   deleteTemplate: (id: string) => void;
   pruneStories: () => string[];
@@ -109,6 +119,7 @@ export const useApp = create<AppState>()(
       drafts: [],
       myTemplates: [],
       reelsMuted: true,
+      activePostId: null,
       chats: {},
 
       markHydrated: () => set({ hydrated: true }),
@@ -139,6 +150,15 @@ export const useApp = create<AppState>()(
         set((state) => ({ drafts: state.drafts.filter((d) => d.id !== id) })),
 
       setReelsMuted: (muted) => set({ reelsMuted: muted }),
+
+      setActivePost: (postId) => set({ activePostId: postId }),
+
+      // Scrolling one post away shouldn't silence the post that has since
+      // taken over, so a stale card can only clear its own claim.
+      clearActivePost: (postId) =>
+        set((state) =>
+          state.activePostId === postId ? { activePostId: null } : state
+        ),
 
       // Editing a template replaces it rather than adding a near-duplicate.
       saveTemplate: (template) =>

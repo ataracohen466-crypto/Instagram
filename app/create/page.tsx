@@ -19,6 +19,7 @@ import { photoUrl as stockPhotoUrl } from "@/lib/seed";
 import { PostMedia } from "@/lib/types";
 import Photo from "@/components/Photo";
 import CameraRecorder from "@/components/CameraRecorder";
+import MuteVideoToggle from "@/components/MuteVideoToggle";
 import { generateCaption, generateComments } from "@/lib/aiClient";
 
 const MAX_DIMENSION = 1080;
@@ -104,6 +105,7 @@ function Composer() {
   const [musicVolume, setMusicVolume] = useState(0.8);
   const [musicBusy, setMusicBusy] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
+  const [videoMuted, setVideoMuted] = useState(false);
 
   // Pull an unshared post back into the composer exactly as it was.
   const loadedRef = useRef(false);
@@ -115,6 +117,7 @@ function Composer() {
     setMusicTitle(editing.musicTitle ?? "");
     setMusicVolume(editing.musicVolume ?? 0.8);
     setSongCredit(editing.songCredit ?? "");
+    setVideoMuted(Boolean(editing.videoMuted));
     (async () => {
       const slides = postSlides(editing);
       const restored: Draft[] = [];
@@ -297,6 +300,7 @@ function Composer() {
         musicTitle: musicTitle || undefined,
         songCredit: songCredit.trim() || undefined,
         musicVolume,
+        videoMuted,
         archived: false,
       });
       router.push("/");
@@ -314,6 +318,7 @@ function Composer() {
       musicTitle: musicTitle || undefined,
       songCredit: songCredit.trim() || undefined,
       musicVolume,
+      videoMuted,
       likedBy: [],
       comments: [],
       createdAt: Date.now(),
@@ -528,6 +533,20 @@ function Composer() {
           e.target.value = "";
         }}
       />
+
+      {drafts.some((d) => d.kind === "video") && (
+        <div className="px-4 pb-1">
+          <MuteVideoToggle
+            muted={videoMuted}
+            onChange={setVideoMuted}
+            hint={
+              musicId
+                ? "Your video plays silently so the track is the only thing heard."
+                : "Your video plays silently for everyone who sees this post."
+            }
+          />
+        </div>
+      )}
 
       <div className="px-4 pb-1">
         <div className="rounded-xl border border-ig-border p-3">

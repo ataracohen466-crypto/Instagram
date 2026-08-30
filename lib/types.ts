@@ -51,6 +51,12 @@ export interface Post {
   /** What you type in — shown instead of the file's name. */
   songCredit?: string;
   musicVolume?: number;
+  /**
+   * Silences the post's own video sound for everyone, chosen when you post
+   * it. Separate from the app-wide speaker, which is the viewer's live
+   * preference and flips back the moment they tap it.
+   */
+  videoMuted?: boolean;
   /** Unshared: kept and editable, but off the feed. */
   archived?: boolean;
   isMine?: boolean;

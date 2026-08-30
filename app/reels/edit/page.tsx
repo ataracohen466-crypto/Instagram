@@ -27,6 +27,7 @@ import { photoUrl } from "@/lib/seed";
 import { downscale } from "@/lib/image";
 import { putMedia } from "@/lib/media";
 import { renderReel, renderSupported } from "@/lib/render";
+import MuteVideoToggle from "@/components/MuteVideoToggle";
 import ReelMedia from "@/components/ReelMedia";
 import CameraRecorder from "@/components/CameraRecorder";
 import VoiceOverRecorder from "@/components/VoiceOverRecorder";
@@ -126,6 +127,7 @@ function Editor() {
   const [showVoice, setShowVoice] = useState(false);
   const [musicBusy, setMusicBusy] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
+  const [clipsMuted, setClipsMuted] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
   const fileInput = useRef<HTMLInputElement>(null);
@@ -152,6 +154,7 @@ function Editor() {
       setSongCredit(draft.songCredit ?? "");
       setVoiceId(draft.voiceMediaId);
       setVoiceVolume(draft.voiceVolume);
+      setClipsMuted(Boolean(draft.clipsMuted));
       setVoiceDuration(draft.voiceDuration);
       setVoiceStart(draft.voiceStart ?? 0);
       return;
@@ -279,6 +282,7 @@ function Editor() {
       voiceVolume,
       voiceDuration,
       voiceStart,
+      clipsMuted,
       updatedAt: Date.now(),
     };
     saveDraftToVault(draft);
@@ -419,6 +423,7 @@ function Editor() {
       voiceMediaId: voiceId,
       voiceVolume,
       voiceStart,
+      clipsMuted,
       isMine: true,
     };
 
@@ -435,6 +440,7 @@ function Editor() {
         voiceMediaId: voiceId,
         voiceVolume,
         voiceStart,
+        clipsMuted,
         onProgress: setExportPct,
       });
 
@@ -796,6 +802,20 @@ function Editor() {
             );
           })}
         </div>
+
+        {frames.some((f) => f.kind === "video" && f.mediaId) && (
+          <div className="mt-6">
+            <MuteVideoToggle
+              muted={clipsMuted}
+              onChange={setClipsMuted}
+              hint={
+                musicId
+                  ? "Your clips' own sound is left out of the reel, so only the track and any narration are heard."
+                  : "Your clips' own sound is left out of the reel."
+              }
+            />
+          </div>
+        )}
 
         {/* Music */}
         <p className="mt-6 text-[13px] font-semibold">Music</p>

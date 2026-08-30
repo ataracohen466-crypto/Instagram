@@ -303,7 +303,7 @@ function StoryViewer() {
             videoRef.current = el;
           }}
           onEnded={() => goToItem(1)}
-          forceMuted={muted || Boolean(item.musicMediaId)}
+          forceMuted={muted || Boolean(item.musicMediaId) || Boolean(item.videoMuted)}
         />
 
         {item.musicMediaId && musicUrl && (
@@ -373,7 +373,8 @@ function StoryViewer() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              {(item.musicMediaId || item.kind === "video") && (
+              {(item.musicMediaId ||
+                (item.kind === "video" && !item.videoMuted)) && (
                 <button
                   onClick={() => setMuted(!muted)}
                   aria-label={muted ? "Unmute story" : "Mute story"}

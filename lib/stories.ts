@@ -21,6 +21,8 @@ export interface StoryItem {
   /** Seconds into the track the whole story starts from. */
   musicStart?: number;
   musicVolume?: number;
+  /** Silences this clip's own sound for everyone — see Post.videoMuted. */
+  videoMuted?: boolean;
 }
 
 /**

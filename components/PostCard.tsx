@@ -22,15 +22,6 @@ import { timeAgo } from "@/lib/time";
 import { generateComments } from "@/lib/aiClient";
 
 /**
- * The one post whose track is currently sounding.
- *
- * Two shorter posts can each be more than half on screen at once, so
- * visibility alone would let two songs overlap. Whoever starts playing stops
- * whoever was playing before.
- */
-let nowPlaying: HTMLAudioElement | null = null;
-
-/**
  * Starting and stopping around a single visibility cutoff makes the feed
  * stutter: the ratio hovers on the line while you scroll and the track is
  * repeatedly started and stopped. Playing needs a clear majority on screen,
@@ -57,10 +48,13 @@ export default function PostCard({ post }: { post: Post }) {
   const lastTap = useRef(0);
 
   const muted = useApp((s) => s.reelsMuted);
+  const setActivePost = useApp((s) => s.setActivePost);
+  const clearActivePost = useApp((s) => s.clearActivePost);
+  // Exactly one post is the active one, so only one of anything can sound.
+  const active = useApp((s) => s.activePostId) === post.id;
   const cardRef = useRef<HTMLElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
-  const [onScreen, setOnScreen] = useState(false);
 
   // Decrypt the post's track only if it has one.
   useEffect(() => {
@@ -78,52 +72,47 @@ export default function PostCard({ post }: { post: Post }) {
   }, [post.musicMediaId]);
 
   /**
-   * Only the post you're actually looking at plays. Without this every post
-   * with a track would sound off at once as the feed scrolls.
+   * Claims the post you're actually looking at. Every post used to play its
+   * own media the moment the feed rendered, so a run of video posts all ran
+   * at once and unmuting one let you hear the lot.
    */
   useEffect(() => {
     const el = cardRef.current;
-    if (!el || !post.musicMediaId) return;
+    if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         const ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
         // Only the crossings matter; in between, whatever it was, it stays.
-        setOnScreen((was) =>
-          ratio >= PLAY_ABOVE ? true : ratio <= STOP_BELOW ? false : was
-        );
+        if (ratio >= PLAY_ABOVE) setActivePost(post.id);
+        else if (ratio <= STOP_BELOW) clearActivePost(post.id);
       },
       { threshold: [0, STOP_BELOW, PLAY_ABOVE, 1] }
     );
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [post.musicMediaId]);
+    return () => {
+      observer.disconnect();
+      clearActivePost(post.id);
+    };
+  }, [post.id, setActivePost, clearActivePost]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !musicUrl) return;
     audio.volume = post.musicVolume ?? 0.8;
 
-    if (onScreen && !muted) {
-      if (nowPlaying && nowPlaying !== audio) nowPlaying.pause();
-      nowPlaying = audio;
+    if (active && !muted) {
       // play() rejects if something pauses it before it gets going, which is
       // ordinary here — swallow it rather than letting it surface as an error.
       audio.play().catch(() => {});
     } else {
       audio.pause();
-      if (nowPlaying === audio) nowPlaying = null;
     }
-  }, [onScreen, muted, musicUrl, post.musicVolume]);
+  }, [active, muted, musicUrl, post.musicVolume]);
 
   // Leaving the feed shouldn't leave a track playing behind it.
   useEffect(() => {
     const audio = audioRef.current;
-    return () => {
-      if (audio) {
-        audio.pause();
-        if (nowPlaying === audio) nowPlaying = null;
-      }
-    };
+    return () => audio?.pause();
   }, [musicUrl]);
 
   const liked = post.likedBy.includes(MY_ID);
@@ -288,7 +277,9 @@ export default function PostCard({ post }: { post: Post }) {
         <PostMediaCarousel
           slides={slides}
           onTap={onImageTap}
+          active={active}
           hasMusic={Boolean(post.musicMediaId)}
+          videoMuted={Boolean(post.videoMuted)}
         />
         {post.musicMediaId && musicUrl && (
           /* eslint-disable-next-line jsx-a11y/media-has-caption */

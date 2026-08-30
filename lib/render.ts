@@ -319,6 +319,12 @@ export interface RenderOptions {
   voiceVolume?: number;
   /** Seconds into the reel where the narration starts. */
   voiceStart?: number;
+  /**
+   * Drops the clips' own sound from the export. Muting playback would only
+   * silence it on this device; skipping the decode leaves the shared file
+   * genuinely silent — and saves decoding audio nobody will hear.
+   */
+  clipsMuted?: boolean;
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;
 }
@@ -339,6 +345,7 @@ export async function renderReel({
   voiceMediaId,
   voiceVolume = 1,
   voiceStart = 0,
+  clipsMuted = false,
   onProgress,
   signal,
 }: RenderOptions): Promise<RenderResult> {
@@ -404,7 +411,7 @@ export async function renderReel({
     }
   }
 
-  if (audioCtx && audioDest) {
+  if (audioCtx && audioDest && !clipsMuted) {
     let offset = 0;
     for (const clip of clips) {
       const seconds = clip.frame.seconds;

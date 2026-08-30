@@ -28,6 +28,8 @@ export interface ReelDraft {
   voiceDuration: number;
   /** Optional: drafts saved before offsets existed simply start at 0. */
   voiceStart?: number;
+  /** Silences the clips' own sound in the export. */
+  clipsMuted?: boolean;
   updatedAt: number;
 }
 
@@ -67,6 +69,7 @@ export function draftFromReel(reel: Reel): ReelDraft | null {
     voiceVolume: reel.voiceVolume ?? 1,
     voiceDuration: 0,
     voiceStart: reel.voiceStart ?? 0,
+    clipsMuted: reel.clipsMuted,
     updatedAt: Date.now(),
   };
 }

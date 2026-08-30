@@ -84,12 +84,18 @@ function SlideMedia({
 export default function PostMediaCarousel({
   slides,
   onTap,
+  active = true,
   hasMusic = false,
+  videoMuted = false,
 }: {
   slides: PostMedia[];
   onTap?: () => void;
+  /** Whether this is the post being looked at; only that one plays. */
+  active?: boolean;
   /** Shows the speaker even on a photo post, since a track can still play. */
   hasMusic?: boolean;
+  /** The poster silenced this video's own sound when they posted it. */
+  videoMuted?: boolean;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -99,7 +105,9 @@ export default function PostMediaCarousel({
 
   const multiple = slides.length > 1;
   const showsVideo = slides.some((s) => s.kind === "video");
-  const hasSound = showsVideo || hasMusic;
+  // A video the poster silenced can't be unmuted back into sound, so offering
+  // a speaker for it would be a button that does nothing.
+  const hasSound = (showsVideo && !videoMuted) || hasMusic;
 
   // Derive the active slide from scroll position rather than tracking taps,
   // so a flick that lands between slides still reports the one that settled.
@@ -124,8 +132,8 @@ export default function PostMediaCarousel({
           <div key={slide.id} className="h-full w-full shrink-0 snap-center">
             <SlideMedia
               slide={slide}
-              active={i === index}
-              muted={muted || hasMusic}
+              active={active && i === index}
+              muted={muted || hasMusic || videoMuted}
             />
           </div>
         ))}

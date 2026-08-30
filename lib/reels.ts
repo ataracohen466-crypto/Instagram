@@ -52,6 +52,11 @@ export interface Reel {
   voiceMediaId?: string;
   voiceVolume?: number;
   voiceStart?: number;
+  /**
+   * Silences the clips' own sound. Applied when the reel is exported, so the
+   * shared file is genuinely silent rather than merely played muted.
+   */
+  clipsMuted?: boolean;
   /** Present on reels the user built from a template. */
   frames?: ReelFrame[];
   templateId?: string;

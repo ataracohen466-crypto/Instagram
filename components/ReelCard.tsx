@@ -333,7 +333,7 @@ export default function ReelCard({ reel }: { reel: Reel }) {
             <ReelMedia
               frame={f}
               playing={active && i === frame}
-              muted={muted}
+              muted={muted || Boolean(reel.clipsMuted)}
               className="h-full w-full object-cover"
               animationClass={transitionClass}
             />

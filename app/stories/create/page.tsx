@@ -7,6 +7,7 @@ import { useApp, uid } from "@/lib/store";
 import { downscale } from "@/lib/image";
 import { putMedia } from "@/lib/media";
 import CameraRecorder from "@/components/CameraRecorder";
+import MuteVideoToggle from "@/components/MuteVideoToggle";
 
 const STORY_ASPECT = 9 / 16;
 
@@ -38,6 +39,7 @@ export default function CreateStoryPage() {
   const [musicBusy, setMusicBusy] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [videoMuted, setVideoMuted] = useState(false);
 
   function stage(blob: Blob, kind: "video" | "image") {
     setItems((prev) => [
@@ -98,6 +100,7 @@ export default function CreateStoryPage() {
             musicTitle: musicTitle || undefined,
             musicStart,
             musicVolume,
+            videoMuted,
           });
         } else {
           const dataUrl = await downscale(item.blob, STORY_ASPECT);
@@ -178,6 +181,20 @@ export default function CreateStoryPage() {
           e.target.value = "";
         }}
       />
+
+      {items.some((i) => i.kind === "video") && (
+        <div className="px-4 pb-1">
+          <MuteVideoToggle
+            muted={videoMuted}
+            onChange={setVideoMuted}
+            hint={
+              musicId
+                ? "Your clips play silently so the track is the only thing heard."
+                : "Your clips play silently for everyone who watches this story."
+            }
+          />
+        </div>
+      )}
 
       <div className="px-4 pb-1">
         <div className="rounded-xl border border-ig-border p-3">
