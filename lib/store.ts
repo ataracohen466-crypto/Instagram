@@ -1,310 +1,347 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
-import { readVault, writeVault, setActive } from "./vault";
-import { clearMediaCache } from "./media";
-import { ChatMessage, Comment, Post, Profile } from "./types";
-import { buildSeedFeed, uid } from "./seed";
-import type { Reel } from "./reels";
-import { buildSeedReels } from "./reels";
-import type { StoryItem } from "./stories";
-import { STORY_LIFETIME_MS } from "./stories";
-import type { ReelDraft } from "./drafts";
-import type { ReelTemplate } from "./reelTemplates";
+import { persist, createJSONStorage } from "zustand/middleware";
+import {
+  Book,
+  BOOK_COLORS,
+  Chapter,
+  CodexEntry,
+  CodexType,
+  Scene,
+  Settings,
+} from "./types";
+import { dateKey, totalWords } from "./words";
+
+export function uid(): string {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+function emptyScene(title: string): Scene {
+  const now = Date.now();
+  return {
+    id: uid(),
+    title,
+    content: "",
+    notes: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function emptyChapter(title: string, withScene = true): Chapter {
+  return {
+    id: uid(),
+    title,
+    scenes: withScene ? [emptyScene("Scene 1")] : [],
+  };
+}
+
+const DEFAULT_SETTINGS: Settings = {
+  theme: "light",
+  font: "serif",
+  editorWidth: "normal",
+  typewriterMode: false,
+  dailyGoal: 500,
+};
 
 interface AppState {
   hydrated: boolean;
-  profile: Profile | null;
-  posts: Post[];
-  reels: Reel[];
-  myStory: StoryItem[];
-  drafts: ReelDraft[];
-  /** Templates the user built themselves. */
-  myTemplates: ReelTemplate[];
-  /**
-   * One sound preference for the whole app — reels, feed posts and
-   * stories all follow it, so muting in one place stays muted everywhere.
-   */
-  reelsMuted: boolean;
-  /**
-   * The one feed post close enough to the middle of the screen to count as
-   * the one you're looking at. Only it plays, so scrolling past a run of
-   * video posts doesn't set them all going at once. Deliberately not
-   * persisted — it means nothing on the next visit.
-   */
-  activePostId: string | null;
-  chats: Record<string, ChatMessage[]>;
-  setProfile: (profile: Profile) => void;
-  addStoryItem: (item: StoryItem) => void;
-  removeStoryItem: (id: string) => void;
-  saveDraft: (draft: ReelDraft) => void;
-  deleteDraft: (id: string) => void;
-  setReelsMuted: (muted: boolean) => void;
-  setActivePost: (postId: string) => void;
-  /** Stands down only if this post is still the active one. */
-  clearActivePost: (postId: string) => void;
-  saveTemplate: (template: ReelTemplate) => void;
-  deleteTemplate: (id: string) => void;
-  pruneStories: () => string[];
-  setPostArchived: (postId: string, archived: boolean) => void;
-  updatePost: (postId: string, patch: Partial<Post>) => void;
-  resetEverything: () => void;
-  toggleLike: (postId: string) => void;
-  addComment: (postId: string, comment: Comment) => void;
-  addPost: (post: Post) => void;
-  deletePost: (postId: string) => void;
-  toggleReelLike: (reelId: string) => void;
-  addReelComment: (reelId: string, comment: Comment) => void;
-  addReel: (reel: Reel) => void;
-  deleteReel: (reelId: string) => void;
-  setReelVideo: (reelId: string, mediaId: string, duration: number) => void;
-  appendChat: (personaId: string, message: ChatMessage) => void;
+  books: Book[];
+  settings: Settings;
+  history: Record<string, number>;
+  totalWordsCache: number;
+
   markHydrated: () => void;
+  updateSettings: (patch: Partial<Settings>) => void;
+
+  createBook: (input: { title: string; genre?: string; synopsis?: string }) => string;
+  updateBook: (bookId: string, patch: Partial<Pick<Book, "title" | "genre" | "synopsis" | "dailyGoal" | "color">>) => void;
+  deleteBook: (bookId: string) => void;
+
+  addChapter: (bookId: string, title?: string) => string;
+  updateChapter: (bookId: string, chapterId: string, patch: Partial<Pick<Chapter, "title" | "collapsed">>) => void;
+  deleteChapter: (bookId: string, chapterId: string) => void;
+  reorderChapter: (bookId: string, chapterId: string, direction: -1 | 1) => void;
+
+  addScene: (bookId: string, chapterId: string, title?: string) => string;
+  updateScene: (
+    bookId: string,
+    chapterId: string,
+    sceneId: string,
+    patch: Partial<Pick<Scene, "title" | "content" | "notes">>
+  ) => void;
+  deleteScene: (bookId: string, chapterId: string, sceneId: string) => void;
+  reorderScene: (bookId: string, chapterId: string, sceneId: string, direction: -1 | 1) => void;
+  moveSceneToChapter: (bookId: string, fromChapterId: string, sceneId: string, toChapterId: string) => void;
+
+  addCodexEntry: (bookId: string, type: CodexType, name: string) => string;
+  updateCodexEntry: (bookId: string, entryId: string, patch: Partial<Pick<CodexEntry, "name" | "description" | "type">>) => void;
+  deleteCodexEntry: (bookId: string, entryId: string) => void;
+
+  recordProgress: () => void;
 }
 
-const ME = "__me__";
-
-/**
- * The vault key only exists after a successful login, so the store starts
- * with no storage bound. `bindVault` attaches it and replays the account's
- * saved state; `unbindVault` drops it on logout.
- */
-let vaultUser: string | null = null;
-let vaultKey: CryptoKey | null = null;
-
-const encryptedStorage: StateStorage = {
-  getItem: async (): Promise<string | null> => {
-    if (!vaultUser || !vaultKey) return null;
-    return readVault(vaultUser, vaultKey);
-  },
-  setItem: async (_name, value): Promise<void> => {
-    if (!vaultUser || !vaultKey) return;
-    await writeVault(vaultUser, vaultKey, value);
-  },
-  removeItem: async (): Promise<void> => {
-    /* Accounts are removed via deleteAccount, not by clearing state. */
-  },
-};
-
-export async function bindVault(
-  username: string,
-  key: CryptoKey
-): Promise<void> {
-  vaultUser = username;
-  vaultKey = key;
-  // The media store encrypts clips with this same key.
-  setActive(username, key);
-  await useApp.persist.rehydrate();
-  // A brand-new account has no vault yet, so onRehydrateStorage may not fire.
-  useApp.setState({ hydrated: true });
+function touch<T extends { updatedAt: number }>(obj: T): T {
+  return { ...obj, updatedAt: Date.now() };
 }
 
-export function unbindVault(): void {
-  vaultUser = null;
-  vaultKey = null;
-  // Drop decrypted clip URLs so one account's media can't leak into the next.
-  clearMediaCache();
-  useApp.setState({ profile: null, posts: [], reels: [], myStory: [], drafts: [], myTemplates: [], chats: {} });
-}
-
-export const useApp = create<AppState>()(
+export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       hydrated: false,
-      profile: null,
-      posts: [],
-      reels: [],
-      myStory: [],
-      drafts: [],
-      myTemplates: [],
-      reelsMuted: true,
-      activePostId: null,
-      chats: {},
+      books: [],
+      settings: DEFAULT_SETTINGS,
+      history: {},
+      totalWordsCache: 0,
 
       markHydrated: () => set({ hydrated: true }),
 
-      setProfile: (profile) =>
-        set((state) => ({
-          profile,
-          posts: state.posts.length ? state.posts : buildSeedFeed(),
-          reels: state.reels.length ? state.reels : buildSeedReels(),
-        })),
+      updateSettings: (patch) =>
+        set((s) => ({ settings: { ...s.settings, ...patch } })),
 
-      resetEverything: () =>
-        set({ profile: null, posts: [], reels: [], myStory: [], drafts: [], myTemplates: [], chats: {} }),
-
-      addStoryItem: (item) =>
-        set((state) => ({ myStory: [...state.myStory, item] })),
-
-      removeStoryItem: (id) =>
-        set((state) => ({ myStory: state.myStory.filter((s) => s.id !== id) })),
-
-      // Re-saving a draft replaces it in place and floats it to the top.
-      saveDraft: (draft) =>
-        set((state) => ({
-          drafts: [draft, ...state.drafts.filter((d) => d.id !== draft.id)],
-        })),
-
-      deleteDraft: (id) =>
-        set((state) => ({ drafts: state.drafts.filter((d) => d.id !== id) })),
-
-      setReelsMuted: (muted) => set({ reelsMuted: muted }),
-
-      setActivePost: (postId) => set({ activePostId: postId }),
-
-      // Scrolling one post away shouldn't silence the post that has since
-      // taken over, so a stale card can only clear its own claim.
-      clearActivePost: (postId) =>
-        set((state) =>
-          state.activePostId === postId ? { activePostId: null } : state
-        ),
-
-      // Editing a template replaces it rather than adding a near-duplicate.
-      saveTemplate: (template) =>
-        set((state) => ({
-          myTemplates: [
-            template,
-            ...state.myTemplates.filter((t) => t.id !== template.id),
-          ],
-        })),
-
-      deleteTemplate: (id) =>
-        set((state) => ({
-          myTemplates: state.myTemplates.filter((t) => t.id !== id),
-        })),
-
-      /**
-       * Drops story items past their 24 hours and reports the media ids that
-       * went with them, so the caller can free the encrypted blobs too —
-       * filtering them out of the UI alone would leave the clips on disk
-       * forever.
-       */
-      pruneStories: () => {
+      createBook: ({ title, genre = "", synopsis = "" }) => {
+        const id = uid();
         const now = Date.now();
-        const state = get();
-        const expired = state.myStory.filter(
-          (item) => now - item.createdAt >= STORY_LIFETIME_MS
-        );
-        if (expired.length === 0) return [];
-        set({
-          myStory: state.myStory.filter(
-            (item) => now - item.createdAt < STORY_LIFETIME_MS
-          ),
-        });
-        return expired
-          .map((item) => item.mediaId)
-          .filter((id): id is string => Boolean(id));
+        const color = BOOK_COLORS[get().books.length % BOOK_COLORS.length];
+        const book: Book = {
+          id,
+          title: title.trim() || "Untitled Book",
+          genre,
+          synopsis,
+          color,
+          createdAt: now,
+          updatedAt: now,
+          dailyGoal: get().settings.dailyGoal,
+          chapters: [emptyChapter("Chapter 1")],
+          codex: [],
+        };
+        set((s) => ({ books: [book, ...s.books] }));
+        return id;
       },
 
-      setPostArchived: (postId, archived) =>
-        set((state) => ({
-          posts: state.posts.map((p) =>
-            p.id === postId ? { ...p, archived } : p
+      updateBook: (bookId, patch) =>
+        set((s) => ({
+          books: s.books.map((b) => (b.id === bookId ? touch({ ...b, ...patch }) : b)),
+        })),
+
+      deleteBook: (bookId) => {
+        set((s) => ({ books: s.books.filter((b) => b.id !== bookId) }));
+        get().recordProgress();
+      },
+
+      addChapter: (bookId, title) => {
+        const id = uid();
+        set((s) => ({
+          books: s.books.map((b) => {
+            if (b.id !== bookId) return b;
+            const chapter = emptyChapter(title?.trim() || `Chapter ${b.chapters.length + 1}`);
+            return touch({ ...b, chapters: [...b.chapters, { ...chapter, id }] });
+          }),
+        }));
+        return id;
+      },
+
+      updateChapter: (bookId, chapterId, patch) =>
+        set((s) => ({
+          books: s.books.map((b) =>
+            b.id !== bookId
+              ? b
+              : touch({
+                  ...b,
+                  chapters: b.chapters.map((c) => (c.id === chapterId ? { ...c, ...patch } : c)),
+                })
           ),
         })),
 
-      updatePost: (postId, patch) =>
-        set((state) => ({
-          posts: state.posts.map((p) =>
-            p.id === postId ? { ...p, ...patch } : p
+      deleteChapter: (bookId, chapterId) => {
+        set((s) => ({
+          books: s.books.map((b) =>
+            b.id !== bookId
+              ? b
+              : touch({ ...b, chapters: b.chapters.filter((c) => c.id !== chapterId) })
+          ),
+        }));
+        get().recordProgress();
+      },
+
+      reorderChapter: (bookId, chapterId, direction) =>
+        set((s) => ({
+          books: s.books.map((b) => {
+            if (b.id !== bookId) return b;
+            const idx = b.chapters.findIndex((c) => c.id === chapterId);
+            const target = idx + direction;
+            if (idx < 0 || target < 0 || target >= b.chapters.length) return b;
+            const chapters = [...b.chapters];
+            [chapters[idx], chapters[target]] = [chapters[target], chapters[idx]];
+            return touch({ ...b, chapters });
+          }),
+        })),
+
+      addScene: (bookId, chapterId, title) => {
+        const id = uid();
+        set((s) => ({
+          books: s.books.map((b) => {
+            if (b.id !== bookId) return b;
+            return touch({
+              ...b,
+              chapters: b.chapters.map((c) => {
+                if (c.id !== chapterId) return c;
+                const scene = emptyScene(title?.trim() || `Scene ${c.scenes.length + 1}`);
+                return { ...c, scenes: [...c.scenes, { ...scene, id }] };
+              }),
+            });
+          }),
+        }));
+        return id;
+      },
+
+      updateScene: (bookId, chapterId, sceneId, patch) => {
+        set((s) => ({
+          books: s.books.map((b) => {
+            if (b.id !== bookId) return b;
+            return touch({
+              ...b,
+              chapters: b.chapters.map((c) => {
+                if (c.id !== chapterId) return c;
+                return {
+                  ...c,
+                  scenes: c.scenes.map((sc) =>
+                    sc.id === sceneId ? { ...sc, ...patch, updatedAt: Date.now() } : sc
+                  ),
+                };
+              }),
+            });
+          }),
+        }));
+        get().recordProgress();
+      },
+
+      deleteScene: (bookId, chapterId, sceneId) => {
+        set((s) => ({
+          books: s.books.map((b) => {
+            if (b.id !== bookId) return b;
+            return touch({
+              ...b,
+              chapters: b.chapters.map((c) =>
+                c.id !== chapterId ? c : { ...c, scenes: c.scenes.filter((sc) => sc.id !== sceneId) }
+              ),
+            });
+          }),
+        }));
+        get().recordProgress();
+      },
+
+      reorderScene: (bookId, chapterId, sceneId, direction) =>
+        set((s) => ({
+          books: s.books.map((b) => {
+            if (b.id !== bookId) return b;
+            return touch({
+              ...b,
+              chapters: b.chapters.map((c) => {
+                if (c.id !== chapterId) return c;
+                const idx = c.scenes.findIndex((sc) => sc.id === sceneId);
+                const target = idx + direction;
+                if (idx < 0 || target < 0 || target >= c.scenes.length) return c;
+                const scenes = [...c.scenes];
+                [scenes[idx], scenes[target]] = [scenes[target], scenes[idx]];
+                return { ...c, scenes };
+              }),
+            });
+          }),
+        })),
+
+      moveSceneToChapter: (bookId, fromChapterId, sceneId, toChapterId) =>
+        set((s) => ({
+          books: s.books.map((b) => {
+            if (b.id !== bookId || fromChapterId === toChapterId) return b;
+            const fromChapter = b.chapters.find((c) => c.id === fromChapterId);
+            const scene = fromChapter?.scenes.find((sc) => sc.id === sceneId);
+            if (!scene) return b;
+            return touch({
+              ...b,
+              chapters: b.chapters.map((c) => {
+                if (c.id === fromChapterId) return { ...c, scenes: c.scenes.filter((sc) => sc.id !== sceneId) };
+                if (c.id === toChapterId) return { ...c, scenes: [...c.scenes, scene] };
+                return c;
+              }),
+            });
+          }),
+        })),
+
+      addCodexEntry: (bookId, type, name) => {
+        const id = uid();
+        set((s) => ({
+          books: s.books.map((b) => {
+            if (b.id !== bookId) return b;
+            const entry: CodexEntry = {
+              id,
+              type,
+              name: name.trim() || "Untitled",
+              description: "",
+              createdAt: Date.now(),
+            };
+            return touch({ ...b, codex: [...b.codex, entry] });
+          }),
+        }));
+        return id;
+      },
+
+      updateCodexEntry: (bookId, entryId, patch) =>
+        set((s) => ({
+          books: s.books.map((b) =>
+            b.id !== bookId
+              ? b
+              : touch({
+                  ...b,
+                  codex: b.codex.map((e) => (e.id === entryId ? { ...e, ...patch } : e)),
+                })
           ),
         })),
 
-      toggleLike: (postId) =>
-        set((state) => ({
-          posts: state.posts.map((p) =>
-            p.id === postId
-              ? {
-                  ...p,
-                  likedBy: p.likedBy.includes(ME)
-                    ? p.likedBy.filter((u) => u !== ME)
-                    : [...p.likedBy, ME],
-                }
-              : p
+      deleteCodexEntry: (bookId, entryId) =>
+        set((s) => ({
+          books: s.books.map((b) =>
+            b.id !== bookId ? b : touch({ ...b, codex: b.codex.filter((e) => e.id !== entryId) })
           ),
         })),
 
-      addComment: (postId, comment) =>
-        set((state) => ({
-          posts: state.posts.map((p) =>
-            p.id === postId ? { ...p, comments: [...p.comments, comment] } : p
-          ),
-        })),
-
-      addPost: (post) => set((state) => ({ posts: [post, ...state.posts] })),
-
-      deletePost: (postId) =>
-        set((state) => ({ posts: state.posts.filter((p) => p.id !== postId) })),
-
-      toggleReelLike: (reelId) =>
-        set((state) => ({
-          reels: state.reels.map((r) =>
-            r.id === reelId
-              ? {
-                  ...r,
-                  likedBy: r.likedBy.includes(ME)
-                    ? r.likedBy.filter((u) => u !== ME)
-                    : [...r.likedBy, ME],
-                }
-              : r
-          ),
-        })),
-
-      addReelComment: (reelId, comment) =>
-        set((state) => ({
-          reels: state.reels.map((r) =>
-            r.id === reelId ? { ...r, comments: [...r.comments, comment] } : r
-          ),
-        })),
-
-      addReel: (reel) => set((state) => ({ reels: [reel, ...state.reels] })),
-
-      deleteReel: (reelId) =>
-        set((state) => ({ reels: state.reels.filter((r) => r.id !== reelId) })),
-
-      setReelVideo: (reelId, mediaId, duration) =>
-        set((state) => ({
-          reels: state.reels.map((r) =>
-            r.id === reelId
-              ? { ...r, videoMediaId: mediaId, durationSeconds: duration }
-              : r
-          ),
-        })),
-
-      appendChat: (personaId, message) =>
-        set((state) => ({
-          chats: {
-            ...state.chats,
-            [personaId]: [...(state.chats[personaId] ?? []), message],
-          },
-        })),
+      recordProgress: () => {
+        const s = get();
+        const now = totalWords(s.books);
+        const delta = now - s.totalWordsCache;
+        if (delta > 0) {
+          const key = dateKey();
+          set({
+            history: { ...s.history, [key]: (s.history[key] ?? 0) + delta },
+            totalWordsCache: now,
+          });
+        } else if (delta !== 0) {
+          set({ totalWordsCache: now });
+        }
+      },
     }),
     {
-      name: "instaai-vault",
-      storage: createJSONStorage(() => encryptedStorage),
-      // Nothing loads until a password unlocks the vault.
-      skipHydration: true,
-      partialize: (state) => ({
-        profile: state.profile,
-        posts: state.posts,
-        reels: state.reels,
-        myStory: state.myStory,
-        drafts: state.drafts,
-        myTemplates: state.myTemplates,
-        reelsMuted: state.reelsMuted,
-        chats: state.chats,
+      name: "inkwell.store",
+      storage: createJSONStorage(() =>
+        typeof window === "undefined"
+          ? {
+              getItem: () => null,
+              setItem: () => {},
+              removeItem: () => {},
+            }
+          : localStorage
+      ),
+      partialize: (s) => ({
+        books: s.books,
+        settings: s.settings,
+        history: s.history,
+        totalWordsCache: s.totalWordsCache,
       }),
       onRehydrateStorage: () => (state) => {
-        // Backfills reels for browsers that onboarded before Reels existed.
-        if (state && state.profile && state.reels.length === 0) {
-          state.reels = buildSeedReels();
-        }
         state?.markHydrated();
       },
+      version: 1,
     }
   )
 );
-
-export const MY_ID = ME;
-export { uid };

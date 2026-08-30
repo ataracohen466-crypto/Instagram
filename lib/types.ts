@@ -1,77 +1,59 @@
-export interface Persona {
+export type EditorFont = "serif" | "sans" | "mono";
+export type ThemeName = "light" | "dark" | "sepia";
+export type CodexType = "character" | "location" | "item" | "note";
+
+export interface Scene {
   id: string;
-  username: string;
+  title: string;
+  content: string;
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Chapter {
+  id: string;
+  title: string;
+  scenes: Scene[];
+  collapsed?: boolean;
+}
+
+export interface CodexEntry {
+  id: string;
+  type: CodexType;
   name: string;
-  avatarSeed: string;
-  bio: string;
-  topic: string;
-  personality: string;
-}
-
-export interface Comment {
-  id: string;
-  authorUsername: string;
-  authorAvatarSeed: string;
-  text: string;
-  createdAt: number;
-  isMe?: boolean;
-}
-
-/** One slide of a post. A post with several of these renders as a carousel. */
-export interface PostMedia {
-  id: string;
-  kind: "image" | "video";
-  /** Encrypted blob in the media store — anything you upload or film. */
-  mediaId?: string;
-  /** A data URL, used by posts made before the media store existed. */
-  url?: string;
-  /** A stock-photo seed, used by the seeded AI posts. */
-  seed?: string;
-}
-
-export interface Post {
-  id: string;
-  authorUsername: string;
-  authorAvatarSeed: string;
-  imageSeed: string;
-  imageUrl?: string;
-  /**
-   * The post's slides. Absent on every post made before carousels existed,
-   * which is why `postSlides()` falls back to imageUrl/imageSeed rather than
-   * this being required.
-   */
-  media?: PostMedia[];
-  caption: string;
-  likedBy: string[];
-  comments: Comment[];
-  createdAt: number;
-  /** A track laid over the post, played while it's on screen. */
-  musicMediaId?: string;
-  musicTitle?: string;
-  /** What you type in — shown instead of the file's name. */
-  songCredit?: string;
-  musicVolume?: number;
-  /**
-   * Silences the post's own video sound for everyone, chosen when you post
-   * it. Separate from the app-wide speaker, which is the viewer's live
-   * preference and flips back the moment they tap it.
-   */
-  videoMuted?: boolean;
-  /** Unshared: kept and editable, but off the feed. */
-  archived?: boolean;
-  isMine?: boolean;
-}
-
-export interface ChatMessage {
-  id: string;
-  sender: "me" | "persona";
-  text: string;
+  description: string;
   createdAt: number;
 }
 
-export interface Profile {
-  username: string;
-  name: string;
-  avatarSeed: string;
-  bio: string;
+export interface Book {
+  id: string;
+  title: string;
+  genre: string;
+  synopsis: string;
+  color: string;
+  createdAt: number;
+  updatedAt: number;
+  dailyGoal: number;
+  chapters: Chapter[];
+  codex: CodexEntry[];
 }
+
+export interface Settings {
+  theme: ThemeName;
+  font: EditorFont;
+  editorWidth: "narrow" | "normal" | "wide";
+  typewriterMode: boolean;
+  dailyGoal: number;
+}
+
+export const BOOK_COLORS = [
+  "#8a6d5c", // walnut
+  "#5c6f8a", // slate blue
+  "#6f8a5c", // moss
+  "#8a5c76", // plum
+  "#8a7a5c", // brass
+  "#5c8a83", // teal
+  "#8a5c5c", // brick
+  "#6a5c8a", // violet
+];

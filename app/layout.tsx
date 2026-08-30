@@ -1,26 +1,59 @@
 import type { Metadata, Viewport } from "next";
+import { Source_Serif_4, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import TopBar from "@/components/TopBar";
-import BottomNav from "@/components/BottomNav";
-import OnboardingGate from "@/components/OnboardingGate";
+import ThemeSync from "@/components/ThemeSync";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+
+const serif = Source_Serif_4({
+  subsets: ["latin"],
+  variable: "--font-serif",
+  display: "swap",
+});
+const sans = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "Instagr.ai",
-  description: "A photo feed where everyone else is an AI.",
-  manifest: "manifest.webmanifest",
+  title: "Inkwell — write your novel",
+  description:
+    "A distraction-free novel writing app: chapters and scenes, a story codex, daily word-count goals, and an AI writing partner when you want one.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Instagr.ai",
+    title: "Inkwell",
   },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  themeColor: "#ffffff",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf8f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1917" },
+  ],
 };
+
+// Applies the saved theme before first paint so there's no flash of the
+// wrong palette while React hydrates.
+const THEME_INIT_SCRIPT = `
+(function () {
+  try {
+    var raw = localStorage.getItem("inkwell.store");
+    if (!raw) return;
+    var theme = JSON.parse(raw).state.settings.theme;
+    if (theme && theme !== "light") {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+  } catch (e) {}
+})();
+`;
 
 export default function RootLayout({
   children,
@@ -28,27 +61,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap"
-          rel="stylesheet"
-        />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
-        <OnboardingGate>
-          <TopBar />
-          <main className="mx-auto w-full max-w-[470px] pb-16 pt-[60px] sm:pb-20">
-            {children}
-          </main>
-          <BottomNav />
-        </OnboardingGate>
+        <ThemeSync />
+        <ServiceWorkerRegister />
+        {children}
       </body>
     </html>
   );
