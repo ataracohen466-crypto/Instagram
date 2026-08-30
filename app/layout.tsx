@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Source_Serif_4, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import ThemeSync from "@/components/ThemeSync";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const serif = Source_Serif_4({
   subsets: ["latin"],
@@ -23,12 +24,20 @@ export const metadata: Metadata = {
   title: "Inkwell — write your novel",
   description:
     "A distraction-free novel writing app: chapters and scenes, a story codex, daily word-count goals, and an AI writing partner when you want one.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Inkwell",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#faf8f4",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf8f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1917" },
+  ],
 };
 
 // Applies the saved theme before first paint so there's no flash of the
@@ -58,6 +67,7 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeSync />
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>

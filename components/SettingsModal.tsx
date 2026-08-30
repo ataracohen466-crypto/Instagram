@@ -1,8 +1,10 @@
 "use client";
 
+import { Download } from "lucide-react";
 import { useStore } from "@/lib/store";
 import Modal from "./Modal";
 import { EditorFont, ThemeName } from "@/lib/types";
+import { triggerInstall, useCanInstall, useIsIOS, useIsStandalone } from "@/lib/installPrompt";
 
 const THEMES: { id: ThemeName; label: string; bg: string; fg: string }[] = [
   { id: "light", label: "Paper", bg: "#faf8f4", fg: "#2a2622" },
@@ -19,6 +21,9 @@ const FONTS: { id: EditorFont; label: string; sample: string }[] = [
 export default function SettingsModal({ onClose }: { onClose: () => void }) {
   const settings = useStore((s) => s.settings);
   const updateSettings = useStore((s) => s.updateSettings);
+  const canInstall = useCanInstall();
+  const isIOS = useIsIOS();
+  const isStandalone = useIsStandalone();
 
   return (
     <Modal title="Settings" onClose={onClose}>
@@ -117,6 +122,19 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             className="w-full rounded-xl border border-border bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-accent"
           />
         </label>
+
+        {!isStandalone && (canInstall || isIOS) && (
+          <button
+            onClick={() => canInstall && triggerInstall()}
+            className="flex w-full items-center justify-between rounded-xl border border-border px-3 py-2.5 text-left transition hover:border-ink-faint"
+          >
+            <span className="text-sm text-ink">Install app</span>
+            <span className="flex items-center gap-1.5 text-xs text-ink-faint">
+              {canInstall ? "Add to this device" : "Share → Add to Home Screen"}
+              <Download size={14} />
+            </span>
+          </button>
+        )}
       </div>
     </Modal>
   );

@@ -10,6 +10,7 @@ import ProgressRing from "@/components/ProgressRing";
 import NewBookModal from "@/components/NewBookModal";
 import SettingsModal from "@/components/SettingsModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import InstallBanner from "@/components/InstallBanner";
 import { Book } from "@/lib/types";
 
 export default function Dashboard() {
@@ -42,6 +43,8 @@ export default function Dashboard() {
           <Settings size={20} />
         </button>
       </header>
+
+      <InstallBanner />
 
       <section className="mx-auto max-w-5xl px-5 pb-6 pt-4 sm:px-8">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

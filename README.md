@@ -28,6 +28,12 @@ the AI features.
   or character, all scoped to that book's synopsis and codex. Nothing is
   inserted without you clicking Insert.
 - **Export** — download a whole book as plain text or Markdown at any time.
+- **Installable app** — add it to your phone's home screen or your desktop
+  (Chrome/Edge show an in-app Install button; iOS uses Share → Add to Home
+  Screen). Once installed it opens in its own window with no browser chrome,
+  and a service worker caches the app shell so writing keeps working offline
+  — your books already live in `localStorage`, so only the AI calls need a
+  connection.
 
 ## Deploy to Vercel
 
@@ -94,6 +100,9 @@ lib/
   ai.ts                       Anthropic client wrapper
   fallback.ts                 offline responses when no API key is set
   exportBook.ts               .txt / .md export
+  installPrompt.ts            install-prompt state (Chrome/Edge "Install" flow)
+public/
+  sw.js                       service worker: offline app shell + asset caching
 ```
 
 There is no database and no user accounts — every book, its chapters and
