@@ -58,6 +58,11 @@ const TRANSITION_CLASS: Record<string, string> = {
   blur: "reel-tr-blur",
 };
 
+/** Enough of a reel on screen to be the one you're watching. */
+const CLAIM_ABOVE = 0.6;
+/** All but gone, so releasing it can't silence the reel that replaced it. */
+const GONE_BELOW = 0.1;
+
 export default function ReelCard({ reel }: { reel: Reel }) {
   const profile = useApp((s) => s.profile);
   const toggleReelLike = useApp((s) => s.toggleReelLike);
@@ -67,6 +72,11 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   // Shared so unmuting one reel keeps sound on as you scroll to the next.
   const muted = useApp((s) => s.reelsMuted);
   const setReelsMuted = useApp((s) => s.setReelsMuted);
+  const setActiveReel = useApp((s) => s.setActiveReel);
+  const clearActiveReel = useApp((s) => s.clearActiveReel);
+  // One reel is the one being watched, and it keeps playing until the next
+  // one claims the slot — so a swipe hands over instead of cutting out.
+  const active = useApp((s) => s.activeReelId) === reel.id;
   const router = useRouter();
   const setReelVideo = useApp((s) => s.setReelVideo);
 
@@ -74,7 +84,7 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const personaVideo = useRef<HTMLVideoElement>(null);
   const lastTap = useRef(0);
 
-  const [active, setActive] = useState(false);
+
   const [paused, setPaused] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [frame, setFrame] = useState(0);
@@ -130,12 +140,24 @@ export default function ReelCard({ reel }: { reel: Reel }) {
     const el = containerRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => setActive(entry.isIntersecting && entry.intersectionRatio > 0.6),
-      { threshold: [0, 0.6, 1] }
+      ([entry]) => {
+        const ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
+        // Claiming on the way in is what stops the stutter: mid-swipe both
+        // reels sit near half-visible, and a single cutoff let the outgoing
+        // one pause before the incoming one had taken over — so the sound
+        // stopped and started again within one flick. Releasing only once a
+        // reel is all but gone covers the last reel, where nothing follows.
+        if (ratio >= CLAIM_ABOVE) setActiveReel(reel.id);
+        else if (ratio <= GONE_BELOW) clearActiveReel(reel.id);
+      },
+      { threshold: [0, GONE_BELOW, CLAIM_ABOVE, 1] }
     );
     observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      observer.disconnect();
+      clearActiveReel(reel.id);
+    };
+  }, [reel.id, setActiveReel, clearActiveReel]);
 
   // Each frame holds for its own duration, so template pacing is respected.
   useEffect(() => {

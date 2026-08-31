@@ -34,6 +34,13 @@ interface AppState {
    * persisted — it means nothing on the next visit.
    */
   activePostId: string | null;
+  /**
+   * The reel currently being watched. Reels are full-screen, so exactly one
+   * is ever meant to be playing; holding that as one id means a reel keeps
+   * playing until the next one takes over, rather than each card deciding
+   * for itself and cutting out as the ratio crosses a line mid-swipe.
+   */
+  activeReelId: string | null;
   chats: Record<string, ChatMessage[]>;
   setProfile: (profile: Profile) => void;
   addStoryItem: (item: StoryItem) => void;
@@ -44,6 +51,8 @@ interface AppState {
   setActivePost: (postId: string) => void;
   /** Stands down only if this post is still the active one. */
   clearActivePost: (postId: string) => void;
+  setActiveReel: (reelId: string) => void;
+  clearActiveReel: (reelId: string) => void;
   saveTemplate: (template: ReelTemplate) => void;
   deleteTemplate: (id: string) => void;
   pruneStories: () => string[];
@@ -120,6 +129,7 @@ export const useApp = create<AppState>()(
       myTemplates: [],
       reelsMuted: true,
       activePostId: null,
+      activeReelId: null,
       chats: {},
 
       markHydrated: () => set({ hydrated: true }),
@@ -158,6 +168,15 @@ export const useApp = create<AppState>()(
       clearActivePost: (postId) =>
         set((state) =>
           state.activePostId === postId ? { activePostId: null } : state
+        ),
+
+      setActiveReel: (reelId) => set({ activeReelId: reelId }),
+
+      // Same rule as the feed: a reel scrolling away can only release the
+      // slot if the next one hasn't already taken it.
+      clearActiveReel: (reelId) =>
+        set((state) =>
+          state.activeReelId === reelId ? { activeReelId: null } : state
         ),
 
       // Editing a template replaces it rather than adding a near-duplicate.
