@@ -5,15 +5,16 @@ export const dynamic = "force-static";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Inkwell — write your novel",
-    short_name: "Inkwell",
-    description: "A distraction-free novel writing app with chapters, a story codex, and an AI writing partner.",
+    name: "Bloom — mental health & wellness tracker",
+    short_name: "Bloom",
+    description:
+      "A private, on-device mental health progress tracker for teens and young adults: daily check-ins, patterns, goals, journaling, and a skin wellness tracker.",
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#faf8f4",
-    theme_color: "#faf8f4",
-    categories: ["productivity", "writing", "books"],
+    background_color: "#f7f5fb",
+    theme_color: "#f7f5fb",
+    categories: ["health", "lifestyle", "wellness"],
     icons: [
       { src: "/pwa/icon-192", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/pwa/icon-512", sizes: "512x512", type: "image/png", purpose: "any" },

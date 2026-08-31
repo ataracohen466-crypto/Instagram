@@ -1,8 +1,8 @@
 import { ImageResponse } from "next/og";
-import { inkwellGlyph } from "@/lib/icon";
+import { bloomGlyph } from "@/lib/icon";
 
 export const dynamic = "force-static";
 
 export async function GET() {
-  return new ImageResponse(inkwellGlyph(512), { width: 512, height: 512 });
+  return new ImageResponse(bloomGlyph(512), { width: 512, height: 512 });
 }

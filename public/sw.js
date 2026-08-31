@@ -1,5 +1,4 @@
-// Bump this on every deploy that should invalidate old caches.
-const CACHE = "inkwell-v1";
+const CACHE = "bloom-v1";
 const OFFLINE_URL = "/offline";
 
 self.addEventListener("install", (event) => {
@@ -22,10 +21,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  // Never intercept the AI endpoints — they must always hit the network live.
-  if (url.pathname.startsWith("/api/")) return;
 
-  // Build assets are content-hashed and immutable: cache-first is safe and fast.
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
       caches.match(request).then(
@@ -41,8 +37,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Page navigations: always prefer a fresh network copy, fall back to the
-  // last cached version of that page, then to the offline page.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
@@ -56,7 +50,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Everything else (icons, manifest, fonts): stale-while-revalidate.
   event.respondWith(
     caches.match(request).then((cached) => {
       const network = fetch(request)

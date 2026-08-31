@@ -1,74 +1,58 @@
 import type { Metadata, Viewport } from "next";
-import { Source_Serif_4, Inter, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import "./globals.css";
 import ThemeSync from "@/components/ThemeSync";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import AppShell from "@/components/AppShell";
+import ChromeGate from "@/components/ChromeGate";
 
-const serif = Source_Serif_4({
-  subsets: ["latin"],
-  variable: "--font-serif",
-  display: "swap",
-});
-const sans = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-const mono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  display: "swap",
-});
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const display = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Inkwell — write your novel",
+  title: "Bloom — mental health & wellness tracker",
   description:
-    "A distraction-free novel writing app: chapters and scenes, a story codex, daily word-count goals, and an AI writing partner when you want one.",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Inkwell",
-  },
+    "A private, on-device mental health progress tracker for teens and young adults: daily check-ins, gentle pattern insights, goals, journaling, a calming toolkit, and an integrated skin wellness tracker.",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Bloom" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf8f4" },
-    { media: "(prefers-color-scheme: dark)", color: "#1a1917" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f5fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#16131f" },
   ],
 };
 
-// Applies the saved theme before first paint so there's no flash of the
-// wrong palette while React hydrates.
 const THEME_INIT_SCRIPT = `
 (function () {
   try {
-    var raw = localStorage.getItem("inkwell.store");
-    if (!raw) return;
-    var theme = JSON.parse(raw).state.settings.theme;
-    if (theme && theme !== "light") {
-      document.documentElement.setAttribute("data-theme", theme);
+    var theme = "system";
+    var lockRaw = localStorage.getItem("bloom.lock-meta");
+    var encrypted = lockRaw && JSON.parse(lockRaw).encryptData;
+    if (!encrypted) {
+      var raw = localStorage.getItem("bloom.data");
+      if (raw) theme = (JSON.parse(raw).settings || {}).theme || "system";
     }
+    var dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (dark) document.documentElement.setAttribute("data-theme", "dark");
   } catch (e) {}
 })();
 `;
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
         <ThemeSync />
         <ServiceWorkerRegister />
-        {children}
+        <AppShell>
+          <ChromeGate>{children}</ChromeGate>
+        </AppShell>
       </body>
     </html>
   );

@@ -1,347 +1,311 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import {
-  Book,
-  BOOK_COLORS,
-  Chapter,
-  CodexEntry,
-  CodexType,
-  Scene,
-  Settings,
+import { newId } from "./id";
+import type {
+  AppData, Settings, CheckIn, JournalEntry, Goal, GoalMilestone,
+  SkinCheckIn, SkinPhoto, SkinProduct, SkinRoutineLog, SkinExperiment,
+  StoryMilestone, PrivacySettings, ToolkitUse,
 } from "./types";
-import { dateKey, totalWords } from "./words";
 
-export function uid(): string {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
-
-function emptyScene(title: string): Scene {
-  const now = Date.now();
+export function defaultPrivacy(): PrivacySettings {
   return {
-    id: uid(),
-    title,
-    content: "",
-    notes: "",
-    createdAt: now,
-    updatedAt: now,
+    lockMethod: "none",
+    encryptData: false,
+    autoLockMinutes: 10,
+    appleHealthConnected: false,
+    appleHealthScopes: {},
   };
 }
 
-function emptyChapter(title: string, withScene = true): Chapter {
+export function defaultSettings(): Settings {
   return {
-    id: uid(),
-    title,
-    scenes: withScene ? [emptyScene("Scene 1")] : [],
+    theme: "system",
+    onboardingComplete: false,
+    privacy: defaultPrivacy(),
+    skinModuleEnabled: true,
   };
 }
 
-const DEFAULT_SETTINGS: Settings = {
-  theme: "light",
-  font: "serif",
-  editorWidth: "normal",
-  typewriterMode: false,
-  dailyGoal: 500,
-};
+export function emptyData(): AppData {
+  return {
+    version: 1,
+    settings: defaultSettings(),
+    checkIns: [],
+    journalEntries: [],
+    goals: [],
+    skinCheckIns: [],
+    skinPhotos: [],
+    skinProducts: [],
+    skinRoutineLogs: [],
+    skinExperiments: [],
+    storyMilestones: [],
+    toolkitUses: [],
+  };
+}
 
-interface AppState {
+interface BloomState extends AppData {
   hydrated: boolean;
-  books: Book[];
-  settings: Settings;
-  history: Record<string, number>;
-  totalWordsCache: number;
+  locked: boolean;
+  hydrate: (data: AppData, locked: boolean) => void;
+  setLocked: (locked: boolean) => void;
 
-  markHydrated: () => void;
   updateSettings: (patch: Partial<Settings>) => void;
+  updatePrivacy: (patch: Partial<PrivacySettings>) => void;
 
-  createBook: (input: { title: string; genre?: string; synopsis?: string }) => string;
-  updateBook: (bookId: string, patch: Partial<Pick<Book, "title" | "genre" | "synopsis" | "dailyGoal" | "color">>) => void;
-  deleteBook: (bookId: string) => void;
+  upsertCheckIn: (
+    checkIn: Omit<CheckIn, "id" | "createdAt" | "updatedAt"> & { id?: string }
+  ) => CheckIn;
+  deleteCheckIn: (id: string) => void;
 
-  addChapter: (bookId: string, title?: string) => string;
-  updateChapter: (bookId: string, chapterId: string, patch: Partial<Pick<Chapter, "title" | "collapsed">>) => void;
-  deleteChapter: (bookId: string, chapterId: string) => void;
-  reorderChapter: (bookId: string, chapterId: string, direction: -1 | 1) => void;
+  addJournalEntry: (entry: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">) => JournalEntry;
+  updateJournalEntry: (id: string, patch: Partial<JournalEntry>) => void;
+  deleteJournalEntry: (id: string) => void;
 
-  addScene: (bookId: string, chapterId: string, title?: string) => string;
-  updateScene: (
-    bookId: string,
-    chapterId: string,
-    sceneId: string,
-    patch: Partial<Pick<Scene, "title" | "content" | "notes">>
-  ) => void;
-  deleteScene: (bookId: string, chapterId: string, sceneId: string) => void;
-  reorderScene: (bookId: string, chapterId: string, sceneId: string, direction: -1 | 1) => void;
-  moveSceneToChapter: (bookId: string, fromChapterId: string, sceneId: string, toChapterId: string) => void;
+  addGoal: (
+    goal: Pick<Goal, "title" | "category"> &
+      Partial<Pick<Goal, "description" | "targetValue" | "milestones">>
+  ) => Goal;
+  updateGoal: (id: string, patch: Partial<Goal>) => void;
+  deleteGoal: (id: string) => void;
+  archiveGoal: (id: string, archived: boolean) => void;
+  addGoalMilestone: (goalId: string, label: string) => void;
+  toggleGoalMilestone: (goalId: string, milestoneId: string) => void;
+  logGoalWeek: (goalId: string, note: string, progressDelta: number) => void;
+  addHelpfulThing: (goalId: string, thing: string) => void;
 
-  addCodexEntry: (bookId: string, type: CodexType, name: string) => string;
-  updateCodexEntry: (bookId: string, entryId: string, patch: Partial<Pick<CodexEntry, "name" | "description" | "type">>) => void;
-  deleteCodexEntry: (bookId: string, entryId: string) => void;
+  addSkinCheckIn: (c: Omit<SkinCheckIn, "id" | "createdAt">) => SkinCheckIn;
+  deleteSkinCheckIn: (id: string) => void;
+  addSkinPhoto: (p: Omit<SkinPhoto, "id" | "createdAt"> & { id?: string }) => SkinPhoto;
+  deleteSkinPhoto: (id: string) => void;
+  addSkinProduct: (p: Omit<SkinProduct, "id" | "startedAt"> & { startedAt?: number }) => SkinProduct;
+  stopSkinProduct: (id: string) => void;
+  deleteSkinProduct: (id: string) => void;
+  logSkinRoutine: (date: string, patch: Partial<Pick<SkinRoutineLog, "amDone" | "pmDone">>) => void;
+  addSkinExperiment: (e: Omit<SkinExperiment, "id" | "archived">) => SkinExperiment;
+  archiveSkinExperiment: (id: string, archived: boolean) => void;
 
-  recordProgress: () => void;
+  addStoryMilestone: (m: Omit<StoryMilestone, "id">) => void;
+  setAutoStoryMilestones: (ms: StoryMilestone[]) => void;
+  deleteStoryMilestone: (id: string) => void;
+
+  logToolkitUse: (toolId: string) => void;
+
+  resetAllData: () => void;
+  replaceAllData: (data: AppData) => void;
 }
 
-function touch<T extends { updatedAt: number }>(obj: T): T {
-  return { ...obj, updatedAt: Date.now() };
+function touchSettings<T>(patch: Partial<T>, base: T): T {
+  return { ...base, ...patch };
 }
 
-export const useStore = create<AppState>()(
-  persist(
-    (set, get) => ({
-      hydrated: false,
-      books: [],
-      settings: DEFAULT_SETTINGS,
-      history: {},
-      totalWordsCache: 0,
+export const useStore = create<BloomState>((set, get) => ({
+  ...emptyData(),
+  hydrated: false,
+  locked: false,
 
-      markHydrated: () => set({ hydrated: true }),
+  hydrate: (data, locked) => set({ ...data, hydrated: true, locked }),
+  setLocked: (locked) => set({ locked }),
 
-      updateSettings: (patch) =>
-        set((s) => ({ settings: { ...s.settings, ...patch } })),
+  updateSettings: (patch) => set((s) => ({ settings: touchSettings(patch, s.settings) })),
+  updatePrivacy: (patch) =>
+    set((s) => ({ settings: { ...s.settings, privacy: { ...s.settings.privacy, ...patch } } })),
 
-      createBook: ({ title, genre = "", synopsis = "" }) => {
-        const id = uid();
-        const now = Date.now();
-        const color = BOOK_COLORS[get().books.length % BOOK_COLORS.length];
-        const book: Book = {
-          id,
-          title: title.trim() || "Untitled Book",
-          genre,
-          synopsis,
-          color,
-          createdAt: now,
-          updatedAt: now,
-          dailyGoal: get().settings.dailyGoal,
-          chapters: [emptyChapter("Chapter 1")],
-          codex: [],
-        };
-        set((s) => ({ books: [book, ...s.books] }));
-        return id;
-      },
+  upsertCheckIn: (checkIn) => {
+    const now = Date.now();
+    let result!: CheckIn;
+    set((s) => {
+      const existingIdx = s.checkIns.findIndex(
+        (c) => c.date === checkIn.date || (checkIn.id && c.id === checkIn.id)
+      );
+      if (existingIdx >= 0) {
+        result = { ...s.checkIns[existingIdx], ...checkIn, updatedAt: now };
+        const next = [...s.checkIns];
+        next[existingIdx] = result;
+        return { checkIns: next };
+      }
+      result = { ...checkIn, id: checkIn.id ?? newId(), createdAt: now, updatedAt: now };
+      return { checkIns: [...s.checkIns, result] };
+    });
+    return result;
+  },
+  deleteCheckIn: (id) => set((s) => ({ checkIns: s.checkIns.filter((c) => c.id !== id) })),
 
-      updateBook: (bookId, patch) =>
-        set((s) => ({
-          books: s.books.map((b) => (b.id === bookId ? touch({ ...b, ...patch }) : b)),
-        })),
-
-      deleteBook: (bookId) => {
-        set((s) => ({ books: s.books.filter((b) => b.id !== bookId) }));
-        get().recordProgress();
-      },
-
-      addChapter: (bookId, title) => {
-        const id = uid();
-        set((s) => ({
-          books: s.books.map((b) => {
-            if (b.id !== bookId) return b;
-            const chapter = emptyChapter(title?.trim() || `Chapter ${b.chapters.length + 1}`);
-            return touch({ ...b, chapters: [...b.chapters, { ...chapter, id }] });
-          }),
-        }));
-        return id;
-      },
-
-      updateChapter: (bookId, chapterId, patch) =>
-        set((s) => ({
-          books: s.books.map((b) =>
-            b.id !== bookId
-              ? b
-              : touch({
-                  ...b,
-                  chapters: b.chapters.map((c) => (c.id === chapterId ? { ...c, ...patch } : c)),
-                })
-          ),
-        })),
-
-      deleteChapter: (bookId, chapterId) => {
-        set((s) => ({
-          books: s.books.map((b) =>
-            b.id !== bookId
-              ? b
-              : touch({ ...b, chapters: b.chapters.filter((c) => c.id !== chapterId) })
-          ),
-        }));
-        get().recordProgress();
-      },
-
-      reorderChapter: (bookId, chapterId, direction) =>
-        set((s) => ({
-          books: s.books.map((b) => {
-            if (b.id !== bookId) return b;
-            const idx = b.chapters.findIndex((c) => c.id === chapterId);
-            const target = idx + direction;
-            if (idx < 0 || target < 0 || target >= b.chapters.length) return b;
-            const chapters = [...b.chapters];
-            [chapters[idx], chapters[target]] = [chapters[target], chapters[idx]];
-            return touch({ ...b, chapters });
-          }),
-        })),
-
-      addScene: (bookId, chapterId, title) => {
-        const id = uid();
-        set((s) => ({
-          books: s.books.map((b) => {
-            if (b.id !== bookId) return b;
-            return touch({
-              ...b,
-              chapters: b.chapters.map((c) => {
-                if (c.id !== chapterId) return c;
-                const scene = emptyScene(title?.trim() || `Scene ${c.scenes.length + 1}`);
-                return { ...c, scenes: [...c.scenes, { ...scene, id }] };
-              }),
-            });
-          }),
-        }));
-        return id;
-      },
-
-      updateScene: (bookId, chapterId, sceneId, patch) => {
-        set((s) => ({
-          books: s.books.map((b) => {
-            if (b.id !== bookId) return b;
-            return touch({
-              ...b,
-              chapters: b.chapters.map((c) => {
-                if (c.id !== chapterId) return c;
-                return {
-                  ...c,
-                  scenes: c.scenes.map((sc) =>
-                    sc.id === sceneId ? { ...sc, ...patch, updatedAt: Date.now() } : sc
-                  ),
-                };
-              }),
-            });
-          }),
-        }));
-        get().recordProgress();
-      },
-
-      deleteScene: (bookId, chapterId, sceneId) => {
-        set((s) => ({
-          books: s.books.map((b) => {
-            if (b.id !== bookId) return b;
-            return touch({
-              ...b,
-              chapters: b.chapters.map((c) =>
-                c.id !== chapterId ? c : { ...c, scenes: c.scenes.filter((sc) => sc.id !== sceneId) }
-              ),
-            });
-          }),
-        }));
-        get().recordProgress();
-      },
-
-      reorderScene: (bookId, chapterId, sceneId, direction) =>
-        set((s) => ({
-          books: s.books.map((b) => {
-            if (b.id !== bookId) return b;
-            return touch({
-              ...b,
-              chapters: b.chapters.map((c) => {
-                if (c.id !== chapterId) return c;
-                const idx = c.scenes.findIndex((sc) => sc.id === sceneId);
-                const target = idx + direction;
-                if (idx < 0 || target < 0 || target >= c.scenes.length) return c;
-                const scenes = [...c.scenes];
-                [scenes[idx], scenes[target]] = [scenes[target], scenes[idx]];
-                return { ...c, scenes };
-              }),
-            });
-          }),
-        })),
-
-      moveSceneToChapter: (bookId, fromChapterId, sceneId, toChapterId) =>
-        set((s) => ({
-          books: s.books.map((b) => {
-            if (b.id !== bookId || fromChapterId === toChapterId) return b;
-            const fromChapter = b.chapters.find((c) => c.id === fromChapterId);
-            const scene = fromChapter?.scenes.find((sc) => sc.id === sceneId);
-            if (!scene) return b;
-            return touch({
-              ...b,
-              chapters: b.chapters.map((c) => {
-                if (c.id === fromChapterId) return { ...c, scenes: c.scenes.filter((sc) => sc.id !== sceneId) };
-                if (c.id === toChapterId) return { ...c, scenes: [...c.scenes, scene] };
-                return c;
-              }),
-            });
-          }),
-        })),
-
-      addCodexEntry: (bookId, type, name) => {
-        const id = uid();
-        set((s) => ({
-          books: s.books.map((b) => {
-            if (b.id !== bookId) return b;
-            const entry: CodexEntry = {
-              id,
-              type,
-              name: name.trim() || "Untitled",
-              description: "",
-              createdAt: Date.now(),
-            };
-            return touch({ ...b, codex: [...b.codex, entry] });
-          }),
-        }));
-        return id;
-      },
-
-      updateCodexEntry: (bookId, entryId, patch) =>
-        set((s) => ({
-          books: s.books.map((b) =>
-            b.id !== bookId
-              ? b
-              : touch({
-                  ...b,
-                  codex: b.codex.map((e) => (e.id === entryId ? { ...e, ...patch } : e)),
-                })
-          ),
-        })),
-
-      deleteCodexEntry: (bookId, entryId) =>
-        set((s) => ({
-          books: s.books.map((b) =>
-            b.id !== bookId ? b : touch({ ...b, codex: b.codex.filter((e) => e.id !== entryId) })
-          ),
-        })),
-
-      recordProgress: () => {
-        const s = get();
-        const now = totalWords(s.books);
-        const delta = now - s.totalWordsCache;
-        if (delta > 0) {
-          const key = dateKey();
-          set({
-            history: { ...s.history, [key]: (s.history[key] ?? 0) + delta },
-            totalWordsCache: now,
-          });
-        } else if (delta !== 0) {
-          set({ totalWordsCache: now });
-        }
-      },
-    }),
-    {
-      name: "inkwell.store",
-      storage: createJSONStorage(() =>
-        typeof window === "undefined"
-          ? {
-              getItem: () => null,
-              setItem: () => {},
-              removeItem: () => {},
-            }
-          : localStorage
+  addJournalEntry: (entry) => {
+    const now = Date.now();
+    const full: JournalEntry = { ...entry, id: newId(), createdAt: now, updatedAt: now };
+    set((s) => ({ journalEntries: [full, ...s.journalEntries] }));
+    return full;
+  },
+  updateJournalEntry: (id, patch) =>
+    set((s) => ({
+      journalEntries: s.journalEntries.map((e) =>
+        e.id === id ? { ...e, ...patch, updatedAt: Date.now() } : e
       ),
-      partialize: (s) => ({
-        books: s.books,
-        settings: s.settings,
-        history: s.history,
-        totalWordsCache: s.totalWordsCache,
+    })),
+  deleteJournalEntry: (id) =>
+    set((s) => ({ journalEntries: s.journalEntries.filter((e) => e.id !== id) })),
+
+  addGoal: (goal) => {
+    const full: Goal = {
+      id: newId(),
+      title: goal.title,
+      category: goal.category,
+      description: goal.description,
+      targetValue: goal.targetValue,
+      createdAt: Date.now(),
+      archived: false,
+      progress: 0,
+      milestones: goal.milestones ?? [],
+      weeklyLog: [],
+      helpfulThings: [],
+    };
+    set((s) => ({ goals: [...s.goals, full] }));
+    return full;
+  },
+  updateGoal: (id, patch) =>
+    set((s) => ({ goals: s.goals.map((g) => (g.id === id ? { ...g, ...patch } : g)) })),
+  deleteGoal: (id) => set((s) => ({ goals: s.goals.filter((g) => g.id !== id) })),
+  archiveGoal: (id, archived) =>
+    set((s) => ({ goals: s.goals.map((g) => (g.id === id ? { ...g, archived } : g)) })),
+  addGoalMilestone: (goalId, label) =>
+    set((s) => ({
+      goals: s.goals.map((g) =>
+        g.id === goalId
+          ? { ...g, milestones: [...g.milestones, { id: newId(), label, done: false }] }
+          : g
+      ),
+    })),
+  toggleGoalMilestone: (goalId, milestoneId) =>
+    set((s) => ({
+      goals: s.goals.map((g) => {
+        if (g.id !== goalId) return g;
+        const milestones = g.milestones.map((m) =>
+          m.id === milestoneId ? { ...m, done: !m.done, doneAt: !m.done ? Date.now() : undefined } : m
+        );
+        const doneCount = milestones.filter((m) => m.done).length;
+        const progress = milestones.length ? Math.round((doneCount / milestones.length) * 100) : g.progress;
+        return { ...g, milestones, progress };
       }),
-      onRehydrateStorage: () => (state) => {
-        state?.markHydrated();
-      },
-      version: 1,
-    }
-  )
-);
+    })),
+  logGoalWeek: (goalId, note, progressDelta) =>
+    set((s) => ({
+      goals: s.goals.map((g) => {
+        if (g.id !== goalId) return g;
+        const weekStart = new Date().toISOString().slice(0, 10);
+        return {
+          ...g,
+          weeklyLog: [...g.weeklyLog, { weekStart, note, progressDelta }],
+          progress: Math.max(0, Math.min(100, g.progress + progressDelta)),
+        };
+      }),
+    })),
+  addHelpfulThing: (goalId, thing) =>
+    set((s) => ({
+      goals: s.goals.map((g) =>
+        g.id === goalId && !g.helpfulThings.includes(thing)
+          ? { ...g, helpfulThings: [...g.helpfulThings, thing] }
+          : g
+      ),
+    })),
+
+  addSkinCheckIn: (c) => {
+    const full: SkinCheckIn = { ...c, id: newId(), createdAt: Date.now() };
+    set((s) => {
+      const idx = s.skinCheckIns.findIndex((x) => x.date === c.date);
+      if (idx >= 0) {
+        const next = [...s.skinCheckIns];
+        next[idx] = { ...next[idx], ...c };
+        return { skinCheckIns: next };
+      }
+      return { skinCheckIns: [...s.skinCheckIns, full] };
+    });
+    return full;
+  },
+  deleteSkinCheckIn: (id) =>
+    set((s) => ({ skinCheckIns: s.skinCheckIns.filter((c) => c.id !== id) })),
+
+  addSkinPhoto: (p) => {
+    const full: SkinPhoto = { ...p, id: p.id || newId(), createdAt: Date.now() };
+    set((s) => ({ skinPhotos: [...s.skinPhotos, full] }));
+    return full;
+  },
+  deleteSkinPhoto: (id) => set((s) => ({ skinPhotos: s.skinPhotos.filter((p) => p.id !== id) })),
+
+  addSkinProduct: (p) => {
+    const full: SkinProduct = { ...p, id: newId(), startedAt: p.startedAt ?? Date.now() };
+    set((s) => ({ skinProducts: [...s.skinProducts, full] }));
+    return full;
+  },
+  stopSkinProduct: (id) =>
+    set((s) => ({
+      skinProducts: s.skinProducts.map((p) => (p.id === id ? { ...p, stoppedAt: Date.now() } : p)),
+    })),
+  deleteSkinProduct: (id) =>
+    set((s) => ({ skinProducts: s.skinProducts.filter((p) => p.id !== id) })),
+
+  logSkinRoutine: (date, patch) =>
+    set((s) => {
+      const idx = s.skinRoutineLogs.findIndex((l) => l.date === date);
+      if (idx >= 0) {
+        const next = [...s.skinRoutineLogs];
+        next[idx] = { ...next[idx], ...patch };
+        return { skinRoutineLogs: next };
+      }
+      return {
+        skinRoutineLogs: [
+          ...s.skinRoutineLogs,
+          { date, amDone: false, pmDone: false, ...patch },
+        ],
+      };
+    }),
+
+  addSkinExperiment: (e) => {
+    const full: SkinExperiment = { ...e, id: newId(), archived: false };
+    set((s) => ({ skinExperiments: [...s.skinExperiments, full] }));
+    return full;
+  },
+  archiveSkinExperiment: (id, archived) =>
+    set((s) => ({
+      skinExperiments: s.skinExperiments.map((e) => (e.id === id ? { ...e, archived } : e)),
+    })),
+
+  addStoryMilestone: (m) =>
+    set((s) => ({ storyMilestones: [...s.storyMilestones, { ...m, id: newId() }] })),
+  setAutoStoryMilestones: (ms) =>
+    set((s) => ({
+      storyMilestones: [...s.storyMilestones.filter((m) => m.kind === "manual"), ...ms],
+    })),
+  deleteStoryMilestone: (id) =>
+    set((s) => ({ storyMilestones: s.storyMilestones.filter((m) => m.id !== id) })),
+
+  logToolkitUse: (toolId) =>
+    set((s) => ({
+      toolkitUses: [
+        ...s.toolkitUses,
+        { id: newId(), toolId, date: new Date().toISOString().slice(0, 10), createdAt: Date.now() },
+      ],
+    })),
+
+  resetAllData: () => set({ ...emptyData(), hydrated: true, locked: false }),
+  replaceAllData: (data) => set({ ...data, hydrated: true }),
+}));
+
+/** Pulls the plain-serializable slice of state back out for persistence/export. */
+export function snapshotData(): AppData {
+  const s = useStore.getState();
+  return {
+    version: s.version,
+    settings: s.settings,
+    checkIns: s.checkIns,
+    journalEntries: s.journalEntries,
+    goals: s.goals,
+    skinCheckIns: s.skinCheckIns,
+    skinPhotos: s.skinPhotos,
+    skinProducts: s.skinProducts,
+    skinRoutineLogs: s.skinRoutineLogs,
+    skinExperiments: s.skinExperiments,
+    storyMilestones: s.storyMilestones,
+    toolkitUses: s.toolkitUses,
+  };
+}
