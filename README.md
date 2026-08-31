@@ -11,6 +11,11 @@ the AI features.
 
 ## What it does
 
+- **Password-locked accounts** — the app opens on a lock screen. Your writing
+  is encrypted with a key derived from your password (PBKDF2 + AES-GCM) and
+  stored in IndexedDB, so the lock is a real gate rather than a UI check, and
+  your work is still there every time you come back. There is no password
+  reset, because the password *is* the key — and no server ever sees it.
 - **Books, chapters, scenes** — organize a manuscript into a tree you can
   reorder, rename, and drill into. Each scene autosaves as you type.
 - **Distraction-free editor** — a clean manuscript page with a serif, sans,
@@ -105,9 +110,16 @@ public/
   sw.js                       service worker: offline app shell + asset caching
 ```
 
-There is no database and no user accounts — every book, its chapters and
-scenes, your codex entries, and your writing history live in your browser's
-`localStorage`. Clearing site data resets the app.
+There is no server-side database. Accounts and books live in IndexedDB in
+your browser, encrypted under a key derived from your password — so an
+account does not follow you to another device or browser, and clearing site
+data would take it with it. That is what **Settings → Download a backup**
+is for: it writes a plain JSON file holding every book, which
+**Restore from a backup** reads back (adding to what's there rather than
+replacing it). Keep one somewhere safe.
+
+The app also asks the browser for persistent storage on signup, which stops
+it from evicting your writing when space runs low.
 
 Three themes (paper, sepia, ink) are implemented as CSS custom properties
 switched by a `data-theme` attribute, applied before first paint so there's

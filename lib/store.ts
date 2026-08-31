@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import {
   Book,
   BOOK_COLORS,
@@ -12,9 +12,90 @@ import {
   Settings,
 } from "./types";
 import { dateKey, totalWords } from "./words";
+import { readVault, writeVault, setActive } from "./vault";
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+/**
+ * The store only reads and writes through an unlocked account vault, so it
+ * holds nothing until `bindVault` runs after a successful login.
+ */
+let vaultUser: string | null = null;
+let vaultKey: CryptoKey | null = null;
+
+const encryptedStorage: StateStorage = {
+  getItem: async (): Promise<string | null> => {
+    if (!vaultUser || !vaultKey) return null;
+    return readVault(vaultUser, vaultKey);
+  },
+  setItem: async (_name, value): Promise<void> => {
+    if (!vaultUser || !vaultKey) return;
+    await writeVault(vaultUser, vaultKey, value);
+  },
+  removeItem: async (): Promise<void> => {
+    /* Accounts are removed via deleteAccount, not by clearing state. */
+  },
+};
+
+/** Attaches an unlocked account and replays its saved books into the store. */
+export async function bindVault(username: string, key: CryptoKey): Promise<void> {
+  vaultUser = username;
+  vaultKey = key;
+  setActive(username, key);
+  await useStore.persist.rehydrate();
+  useStore.getState().markHydrated();
+}
+
+const LEGACY_KEY = "inkwell.store";
+
+/**
+ * Books written before accounts existed live in plain localStorage. On the
+ * first account created, fold them into that account's vault rather than
+ * stranding them. The old copy is kept under a renamed key as a safety net.
+ */
+export async function adoptLegacyBooks(): Promise<boolean> {
+  try {
+    if (localStorage.getItem(`${LEGACY_KEY}.adopted`)) return false;
+    const raw = localStorage.getItem(LEGACY_KEY);
+    if (!raw) return false;
+
+    const parsed = JSON.parse(raw) as {
+      state?: { books?: Book[]; settings?: Settings; history?: Record<string, number> };
+    };
+    const books = parsed.state?.books;
+    if (!Array.isArray(books) || books.length === 0) return false;
+
+    // setState alone persists: zustand writes through to the bound vault on
+    // every change, so this lands the adopted books in the account.
+    useStore.setState({
+      books,
+      settings: { ...DEFAULT_SETTINGS, ...(parsed.state?.settings ?? {}) },
+      history: parsed.state?.history ?? {},
+      totalWordsCache: totalWords(books),
+    });
+    // The original is deliberately left where it is — it costs a few KB and
+    // it is the only copy if anything about this import goes wrong. A flag
+    // stops a second account from adopting the same books.
+    localStorage.setItem(`${LEGACY_KEY}.adopted`, new Date().toISOString());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Drops the account on logout so the next person sees nothing. */
+export function unbindVault(): void {
+  vaultUser = null;
+  vaultKey = null;
+  useStore.setState({
+    books: [],
+    history: {},
+    totalWordsCache: 0,
+    hydrated: false,
+    signedInAs: null,
+  });
 }
 
 function emptyScene(title: string): Scene {
@@ -47,12 +128,15 @@ const DEFAULT_SETTINGS: Settings = {
 
 interface AppState {
   hydrated: boolean;
+  /** Whose vault is currently unlocked. Session-only, never persisted. */
+  signedInAs: string | null;
   books: Book[];
   settings: Settings;
   history: Record<string, number>;
   totalWordsCache: number;
 
   markHydrated: () => void;
+  setSignedInAs: (username: string | null) => void;
   updateSettings: (patch: Partial<Settings>) => void;
 
   createBook: (input: { title: string; genre?: string; synopsis?: string }) => string;
@@ -90,12 +174,14 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       hydrated: false,
+      signedInAs: null,
       books: [],
       settings: DEFAULT_SETTINGS,
       history: {},
       totalWordsCache: 0,
 
       markHydrated: () => set({ hydrated: true }),
+      setSignedInAs: (username) => set({ signedInAs: username }),
 
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
@@ -323,24 +409,16 @@ export const useStore = create<AppState>()(
     }),
     {
       name: "inkwell.store",
-      storage: createJSONStorage(() =>
-        typeof window === "undefined"
-          ? {
-              getItem: () => null,
-              setItem: () => {},
-              removeItem: () => {},
-            }
-          : localStorage
-      ),
+      storage: createJSONStorage(() => encryptedStorage),
+      // Nothing is loaded until an account is unlocked, so the store must not
+      // auto-hydrate on mount — bindVault drives that instead.
+      skipHydration: true,
       partialize: (s) => ({
         books: s.books,
         settings: s.settings,
         history: s.history,
         totalWordsCache: s.totalWordsCache,
       }),
-      onRehydrateStorage: () => (state) => {
-        state?.markHydrated();
-      },
       version: 1,
     }
   )
