@@ -6,7 +6,9 @@ import { Question, QuestionResult } from "@/lib/types";
 import { normalizeAnswer } from "@/lib/utils";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+// 60s is the ceiling on Vercel's Hobby plan; anything higher fails the
+// deploy outright. On Pro this can go up to 300 for very long generations.
+export const maxDuration = 60;
 
 interface Body {
   questions?: Question[];

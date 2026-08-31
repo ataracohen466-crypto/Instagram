@@ -13,7 +13,9 @@ import { StudyGuide } from "@/lib/types";
 import { clampText } from "@/lib/utils";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+// 60s is the ceiling on Vercel's Hobby plan; anything higher fails the
+// deploy outright. On Pro this can go up to 300 for very long generations.
+export const maxDuration = 60;
 
 type GuideBody = Omit<StudyGuide, "id" | "subjectId" | "createdAt" | "noteId">;
 
