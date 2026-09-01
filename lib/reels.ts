@@ -36,6 +36,12 @@ export interface Reel {
   /** Bundled MP4 for the AI personas' own reels. */
   videoSrc?: string;
   /**
+   * A bundled track played under a reel that has no sound of its own. The
+   * personas' clips are picture-only files, so without this their reels are
+   * silent however far up you turn the volume.
+   */
+  musicSrc?: string;
+  /**
    * A template reel is exported to one continuous video at share time; this
    * is that single clip in the media store. `frames` is kept only as the
    * recipe it was built from.
@@ -45,6 +51,8 @@ export interface Reel {
   /** Background music mixed into the exported video. */
   musicMediaId?: string;
   musicTitle?: string;
+  /** 0-1, kept so a reel that never got exported still plays at your level. */
+  musicVolume?: number;
   /** A free-text "Song · Artist" credit shown on the reel. Display only —
    * no audio is attached or played for it. */
   songCredit?: string;
@@ -66,6 +74,9 @@ export interface Reel {
   textStyle?: TextStyleId;
   isMine?: boolean;
 }
+
+/** The bundled beds, spread across the personas so the feed isn't one loop. */
+const REEL_TRACKS = ["drift", "sunlit", "dusk", "pulse"];
 
 const REEL_CAPTIONS: Record<string, string[]> = {
   travel: ["POV: the layover was the best part", "walked here for 20 mins, worth it 🌍"],
@@ -105,13 +116,14 @@ export function buildSeedReels(): Reel[] {
       authorUsername: persona.username,
       authorAvatarSeed: persona.avatarSeed,
       videoSrc: assetUrl(`/clips/${persona.id}.mp4`),
+      musicSrc: assetUrl(`/clips/audio/${REEL_TRACKS[i % REEL_TRACKS.length]}.wav`),
       frameSeeds: [
         `${persona.id}-reel-a`,
         `${persona.id}-reel-b`,
         `${persona.id}-reel-c`,
       ],
       caption: pick(pool, i),
-      audioLabel: `${persona.name} · original audio`,
+      audioLabel: `${persona.name} · ${REEL_TRACKS[i % REEL_TRACKS.length]}`,
       likedBy: PERSONAS.filter(() => Math.random() > 0.35).map((p) => p.username),
       comments,
       createdAt: now - i * 1_800_000 - Math.floor(Math.random() * 1_800_000),

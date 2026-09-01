@@ -93,6 +93,8 @@ export default function ReelCard({ reel }: { reel: Reel }) {
   const [draft, setDraft] = useState("");
   const [replying, setReplying] = useState(false);
   const [renderedUrl, setRenderedUrl] = useState<string | null>(null);
+  const [musicUrl, setMusicUrl] = useState<string | null>(null);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
   const [progress, setProgress] = useState(0);
   const [combining, setCombining] = useState(false);
   const [combinePct, setCombinePct] = useState(0);
@@ -135,6 +137,52 @@ export default function ReelCard({ reel }: { reel: Reel }) {
       cancelled = true;
     };
   }, [reel.videoMediaId]);
+
+  /**
+   * The track for a reel whose sound isn't already inside its video.
+   *
+   * An exported reel has the music mixed in, so it needs nothing here. Every
+   * other reel does: the personas' clips are picture-only files, and a reel
+   * that couldn't be flattened into one video on this browser keeps its music
+   * as an attachment that nothing was playing.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    if (reel.videoMediaId) {
+      setMusicUrl(null);
+      return;
+    }
+    if (reel.musicMediaId) {
+      getMediaUrl(reel.musicMediaId).then((url) => {
+        if (!cancelled) setMusicUrl(url);
+      });
+    } else {
+      setMusicUrl(reel.musicSrc ?? null);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [reel.videoMediaId, reel.musicMediaId, reel.musicSrc]);
+
+  // Follows the reel: it plays while you're watching, and stops when you
+  // scroll on, pause it, or mute.
+  useEffect(() => {
+    const audio = musicRef.current;
+    if (!audio || !musicUrl) return;
+    audio.volume = reel.musicVolume ?? 0.7;
+    if (active && !paused && !muted) {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+      if (!active) audio.currentTime = 0;
+    }
+  }, [active, paused, muted, musicUrl, reel.musicVolume]);
+
+  // Leaving reels shouldn't leave a track playing behind it.
+  useEffect(() => {
+    const audio = musicRef.current;
+    return () => audio?.pause();
+  }, [musicUrl]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -361,6 +409,11 @@ export default function ReelCard({ reel }: { reel: Reel }) {
             />
           </div>
         ))
+      )}
+
+      {musicUrl && (
+        /* eslint-disable-next-line jsx-a11y/media-has-caption */
+        <audio ref={musicRef} src={musicUrl} loop muted={muted} className="hidden" />
       )}
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />

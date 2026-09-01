@@ -419,6 +419,7 @@ function Editor() {
       textStyle: template!.textStyle,
       musicMediaId: musicId,
       musicTitle: musicTitle || undefined,
+      musicVolume,
       songCredit: songCredit.trim() || undefined,
       voiceMediaId: voiceId,
       voiceVolume,
